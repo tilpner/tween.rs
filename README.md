@@ -1,9 +1,11 @@
 redox-tween 
 ===========
 
+*This repository contains code that has not been properly tested yet, continue at the risk of doing stupid things while discovering parts of this library don't work.*
+
 ## Introduction
 
-Games and other applications often have a need to change values smoothly, without the need for a fully-blown physics system. This is where [Tweening][wikipedia] (Inbetweening) comes in. It allows to interpolate between numerical values in a lightweight way. 
+Games and other applications often have a need to change values smoothly, without the need for a fully-blown physics system. This is where [Tweening][wikipedia] (Inbe**tween**ing) comes in. It allows to interpolate between numerical values in a lightweight way. 
 
 [This YouTube video][youtube-juice] is an interesting example of how the addition of animations (via tweens) can change the feeling of a game. 
 
@@ -34,6 +36,11 @@ fn main() {
 
 ```
 
+Another example can be found in `images.rs`. Compiling and running it *should* create `.ppm` files of all basic variations of tweens in `/tmp/`. If that directory doesn't exit for you, you should change the hardcoded path. (Yes, it should be an argument)
+
+More complex examples will follow.
+
+
 ## Features
 
 - Allows tweening of any type (via traits)
@@ -56,11 +63,21 @@ fn main() {
  - Pauses
  - Function execution
  - Repeated execution
+- Three value access
+ - via unsafe pointers
+ - via `Cell`
+ - via callback functions
 
 ## Todo
 
 - Direct `task` launching
 - Making tweens `Send`able?
+
+## Feedback and contribution
+
+Feedback in any form is strongly desired. Either email me at `ubrccare.gvyy@tznvy.pbz` ([rot-13 that][rot13]), create an issue or ping me on IRC (nick: flan3002).
+
+[rot13]: http://www.rot13.com/
 
 ## Thanks
 

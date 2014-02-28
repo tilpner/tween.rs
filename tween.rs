@@ -1,5 +1,5 @@
 #[crate_id = "redox-tween#0.1"]
-#[crate_type = "lib"];
+#[crate_type = "lib"]
 
 use std::ptr;
 use std::cast;

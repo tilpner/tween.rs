@@ -69,7 +69,7 @@ impl PPM {
 }
 
 fn main() {
-	let base_path = ~"/tmp/tweens/{1}_{2}.ppm";
+	let base_path = ~"/tmp/{1}_{2}.ppm";
 	let eases = ~[ease::linear(), ease::sine(), ease::quad(), ease::cubic(), ease::quart(), ease::quint(), ease::back(), ease::elastic(), ease::bounce(), ease::circ()];
 	let ease_names = ~[~"linear", ~"sine", ~"quad", ~"cubic", ~"quart", ~"quint", ~"back", ~"elastic", ~"bounce", ~"circ"];
 	let modes = [ease::In, ease::Out, ease::InOut];
