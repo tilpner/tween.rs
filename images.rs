@@ -69,35 +69,7 @@ impl PPM {
 }
 
 fn main() {
-	/*let f = Cell::new(0.);
-	let mut g = 200.;
-
-	let mut tw = par(~[
-			seq(~[from_to(&f, 0., 200., &ease::linear, InOut, 1.),
-				from_to(&f, 200., 0., &ease::linear, InOut, 1.)]),
-			seq(~[from_to(& &mut g, 200., 0., &ease::linear, InOut, 1.),
-				from_to(& &mut g, 0., 200., &ease::linear, InOut, 1.)])
-	]);
-	
-
-	let mut curr = 0.0;	
-	while ! tw.done() {
-		curr += 0.01f64; 
-		tw.update(0.01f64);	
-		println!("curr: {}, remain: {}, i: {}, g: {}", curr, tw.remaining(), f.get(), g);
-	}*/
-
-	/*let mut x = 0;
-	let len = 40;
-	let mut tween = to(& &mut x, 40, &ease::bounce, ease::Out, 40.);
-	for y in range(0, len) {
-		tween.update(1.);
-		for _ in range(0, x) {
-			print!(" ");
-		}
-		println!("x");
-	}*/
-	let base_path = ~"/home/till/res/img/tweens/{1}_{2}.ppm";
+	let base_path = ~"/tmp/tweens/{1}_{2}.ppm";
 	let eases = ~[ease::linear(), ease::sine(), ease::quad(), ease::cubic(), ease::quart(), ease::quint(), ease::back(), ease::elastic(), ease::bounce(), ease::circ()];
 	let ease_names = ~[~"linear", ~"sine", ~"quad", ~"cubic", ~"quart", ~"quint", ~"back", ~"elastic", ~"bounce", ~"circ"];
 	let modes = [ease::In, ease::Out, ease::InOut];
@@ -136,10 +108,4 @@ fn write_image(path: &str, ease: &ease::Ease, mode: ease::Mode) {
 	img.write(&mut output);
 	output.flush();
 
-}
-
-#[test]
-fn interpolate() {
-	let i = 42;
-	println!("{}", (i as f64).interp_new_to(&100f64, 0.5f64)); 
 }

@@ -31,4 +31,46 @@ fn main() {
 		println(x.to_str());
 	}
 }
+
 ```
+
+## Features
+
+- Allows tweening of any type (via traits)
+- Multiple easing equations:
+ - Linear
+ - Quad
+ - Cubic
+ - Quart
+ - Quint
+ - Sine
+ - Circular
+ - Back
+ - Elastic
+ - Bounce
+- Easy to add own equations
+- Easing modes `In`, `Out` and `InOut`
+- Tween organization:
+ - Sequential execution
+ - Parallel execution
+ - Pauses
+ - Function execution
+ - Repeated execution
+
+## Todo
+
+- Direct `task` launching
+- Making tweens `Send`able?
+
+## Thanks
+
+Many thanks to eddyb, cmr, bjz, kimundi, mindslight, hoverbear, sfackler, and others from [mozilla/#rust][irc]!
+Also thanks to lifthrasiir from reddit for helping me with a `'static` problem.
+
+[irc]: http://client00.chat.mibbit.com/?server=irc.mozilla.org&channel=%23rust
+
+## Resources
+
+For preview of the easing equations you may visit [easings.net][easings] for an overview of different easings. Note that `Expo` is not implemented at time of writing.
+
+[easings]: http://easings.net/

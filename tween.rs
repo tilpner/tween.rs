@@ -1,6 +1,4 @@
-// Thanks to eddyb, cmr, bjz, kimundi, mindslight, hoverbear, sfackler, and others from mozilla/#rust !
-
-#[crate_id = "redox-tween#0.1"];
+#[crate_id = "redox-tween#0.1"]
 #[crate_type = "lib"];
 
 use std::ptr;
