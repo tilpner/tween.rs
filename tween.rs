@@ -163,32 +163,6 @@ impl<T: Tweenable> Interpolation<T> for T {
 
 }
 
-/*mod spec {
-	use super::{Tweenable, Accessible, Tween, Single, Pause, Sequence, Parallel};
-
-	pub enum Spec<'a, T> {
-		FromTo(&'a Accessible<T>, T, T, fn(f64) -> f64, f64),
-		Pause(f64),
-		Seq(~[Spec<'a, T>]),
-		Par(~[Spec<'a, T>])
-	}
-
-	fn collect<'a, T: Tweenable + ToStr>(specs: ~[Spec<'a, T>]) -> ~[~Tween:] {
-		let mut iter = specs.move_iter();
-		iter.map(|a| create(a)).collect()
-	}
-
-	pub fn create<'a, T: Tweenable + ToStr>(spec: Spec<'a, T>) -> ~Tween: {
-		match spec {
-			FromTo(acc, start, end, ease, duration) => ~Single::new(acc.create_access(), start, end, ease, duration) as ~Tween:,
-			Pause(duration) => ~Pause::new(duration) as ~Tween:,
-			Seq(specs) => ~Sequence::new(collect(specs)) as ~Tween:,
-			Par(specs) => ~Parallel::new(collect(specs)) as ~Tween:
-		}
-	}
-
-}*/
-
 pub mod ease {
 	use std::f64::NAN;
 	use std::f64::pow;
@@ -809,6 +783,14 @@ pub fn par<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
 	~Parallel::<'a>::new(_tweens) as ~Tween:
 }
 
+pub fn rep(tween: ~Tween:) -> ~Tween: {
+	~Repeat::new(tween) as ~Tween:
+}
+
 pub fn exec(content: fn()) -> ~Tween: {
 	~Exec::new(content) as ~Tween:
+}
+
+pub fn pause(duration: f64) -> ~Tween: {
+	~Pause::new(duration) as ~Tween:
 }
