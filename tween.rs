@@ -1,4 +1,4 @@
-// Thanks to eddyb, cmr, bjz, kimundi, mindslight, hoverbear, and others from mozilla/#rust !
+// Thanks to eddyb, cmr, bjz, kimundi, mindslight, hoverbear, sfackler, and others from mozilla/#rust !
 
 #[crate_id = "redox-tween#0.1"];
 #[crate_type = "lib"];
@@ -8,12 +8,8 @@ use std::cast;
 use std::cmp::{max, min};
 use std::clone::Clone;
 use std::cell::Cell;
-use std::io::BufferedWriter;
-use std::io::fs::File;
-use std::io::FileMode::{Open};
-use std::io::FileAccess::{Write};
-use ease::InOut;
-use ease::Ease;
+use std::f64::INFINITY;
+use std::num::{ToPrimitive, FromPrimitive};
 
 trait Tweenable: Add<Self, Self> + Sub<Self, Self> + MulWithF64 + Pod {}
 
@@ -98,11 +94,45 @@ impl<'a, T> Accessible<T> for &'a mut T {
 	}
 }
 
+struct FnAccess<T> {
+	get: fn() -> T,
+	set: fn(T)
+}
+
+impl<T> FnAccess<T> {
+	fn new(_get: fn() -> T, _set: fn(T)) -> FnAccess<T> {
+		FnAccess {
+			get: _get,
+			set: _set
+		}
+	}
+}
+
+impl<'a, T> Access<'a, T> for FnAccess<T> {
+	#[inline(always)]
+	fn get(&self) -> T {
+		(self.get)()
+	}
+
+	#[inline(always)]
+	fn set(&self, new_val: T) {
+		(self.set)(new_val)
+	}
+}
+
+impl<T> Accessible<T> for (fn() -> T, fn(T)) {
+	fn create_access(&self) -> ~Access:<T> {
+		match *self {
+			(get, set) => ~FnAccess::new(get, set) as ~Access:<T>
+		}
+	}
+}
+
 trait MulWithF64 {
 	fn mul_with_f64(&self, rhs: f64) -> Self;
 }
 
-impl<T: std::num::ToPrimitive + std::num::FromPrimitive> MulWithF64 for T {
+impl<T: ToPrimitive + FromPrimitive> MulWithF64 for T {
 	fn mul_with_f64(&self, rhs: f64) -> T {
 		FromPrimitive::from_f64(self.to_f64().unwrap() * rhs).unwrap()
 	}
@@ -161,10 +191,11 @@ impl<T: Tweenable> Interpolation<T> for T {
 
 }*/
 
-mod ease {
-	use std::f64::consts::{PI, FRAC_PI_2, FRAC_PI_4};
+pub mod ease {
+	use std::f64::NAN;
 	use std::f64::pow;
-	use std::num::{sin, cos, sqrt};
+	use std::f64::consts::{PI, FRAC_PI_2, FRAC_PI_4};
+	use std::num::{sin, cos, asin, sqrt};
 
 	pub enum Mode {
 		In,
@@ -207,7 +238,7 @@ mod ease {
 		}
 	}
 	
-	fn clamp<T: Ord>(val: T, low: T, high: T) -> T {
+	pub fn clamp<T: Ord>(val: T, low: T, high: T) -> T {
 		if val < low {
 			low
 		} else if val > high {
@@ -222,36 +253,306 @@ mod ease {
 		a * a
 	}
 
-	pub fn linear(t: f64) -> f64 {
-		t
-	}
+	struct LinearEase;
 
-	pub fn fade(t: f64) -> f64 {
-		clamp(t * t * t * (t * (t * 6f64 - 15f64) + 10f64), 0f64, 1f64)
-	}
-
-	pub fn sine(t: f64) -> f64 {
-		1f64 - cos(t * FRAC_PI_2)
-	}
-
-	pub fn circ(t: f64) -> f64 {
-		1f64 - sqrt(1f64 - t * t)
-	}
-
-	pub fn bounce(t: f64) -> f64 {
-		if 1.0 - t < 1.0 / 2.75 {
-			1.0 - (7.5625 * square(1.0 - t))
-		} else if 1.0 - t < 2.0 / 2.75 {
-			1.0 - (7.5625 * square(1.0 - t - 1.5 / 2.75) + 0.75) 
-		} else if 1.0 - t < 2.5 / 2.75 {
-			1.0 - (7.5625 * square(1.0 - t - 2.25 / 2.75) + 0.9375)
-		} else {
-			1.0 - (7.5625 * square(1.0 - t - 2.625 / 2.75) + 0.984375)
+	impl Ease for LinearEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			t
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			t
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			t
 		}
 	}
 
-	pub fn elastic(t: f64) -> f64 {
-		pow(-2.0, 10.0 * (t - 1.0)) * sin(((t - 1.0) - 0.3 / 4.0) * 2.0 * FRAC_PI_4)
+	pub fn linear() -> ~Ease {
+		~LinearEase as ~Ease
+	} 
+	
+	struct QuadEase;
+
+	impl Ease for QuadEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			t * t
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			-t * (t - 2.)
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			if {t *= 2.;t} < 1. {
+				0.5 * t * t
+			} else {
+				-0.5 * ({t -= 1.;t} * (t - 2.) - 1.)
+			}
+		}
+	}
+	
+	pub fn quad() -> ~Ease {
+		~QuadEase as ~Ease
+	}
+
+	struct CubicEase;
+
+	impl Ease for CubicEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			t * t * t
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			let s = t - 1.;
+			s * s * s + 1.
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let s = t * 2.;
+			if s < 1. { 
+				0.5 * s * s * s
+			} else {
+				let u = s - 2.;
+				0.5 * (u * u * u + 2.) 
+			}
+		}
+	}
+
+	pub fn cubic() -> ~Ease {
+		~CubicEase as ~Ease
+	}
+
+	struct QuartEase;
+
+	impl Ease for QuartEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			t * t * t * t
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			let s = t - 1.;
+			-(s * s * s * s - 1.)
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			if {t *= 2.;t} < 1. {
+				0.5 * t * t * t * t
+			} else {
+				-0.5 * ({t -= 2.;t} * t * t * t - 2.)
+			}
+		}
+	}
+
+	pub fn quart() -> ~Ease {
+		~QuartEase as ~Ease
+	}
+
+	struct QuintEase;
+
+	impl Ease for QuintEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			t * t * t * t * t
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			let s = t - 1.;		
+			s * s * s * s * s + 1.
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			
+			if {t *= 2.;t} < 1. {
+				0.5 * t * t * t * t * t
+			} else {
+				 0.5 * ({t -= 2.;t} * t * t * t * t + 2.)
+			}
+		}
+	}
+
+	pub fn quint() -> ~Ease {
+		~QuintEase as ~Ease
+	}
+
+	struct SineEase;
+
+	impl Ease for SineEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			-cos(t * FRAC_PI_2) + 1.
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			sin(t * FRAC_PI_2)
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			-0.5 * (cos(PI * t) - 1.)
+		}
+	}
+
+	pub fn sine() -> ~Ease {
+		~SineEase as ~Ease
+	}
+
+	struct CircEase;
+
+	impl Ease for CircEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			-sqrt(1. - t * t) + 1.
+		}
+
+		fn ease_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			sqrt(1. - {t -= 1.;t} * t)
+		}
+
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			if {t *= 2.;t} < 1. {
+				-0.5 * (sqrt(1. - t * t) - 1.)
+			} else {
+				0.5 * (sqrt(1. - {t -= 2.;t} * t) + 1.)
+			}
+		}
+	}
+
+	pub fn circ() -> ~Ease {
+		~CircEase as ~Ease
+	}
+
+	struct BounceEase;
+
+	impl Ease for BounceEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			1. - self.ease_out(1. - t)
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			if t < 1. / 2.75 {
+				7.5625 * t * t
+			} else if t < 2. / 2.75 {
+				let s = t - 1.5 / 2.75;
+				7.5625 * s * s + 0.75
+			} else if t < 2.5/2.75 {
+				let s = t - 2.25 / 2.75;
+				7.5625 * s * s + 0.9375
+			} else {
+				let s = t - 2.625 / 2.75;
+				7.5625 * s * s + 0.984375
+			}
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			if t < 0.5 {
+				self.ease_in(t * 2.) * 0.5
+			} else {
+				self.ease_out(t * 2. - 1.) * 0.5 + 0.5
+			}
+		}
+	}
+
+	pub fn bounce() -> ~Ease {
+		~BounceEase as ~Ease
+	}
+
+	struct ElasticEase {
+		a: f64,
+		p: f64
+	}
+
+	impl ElasticEase {
+		fn a<'a>(&'a mut self, a: f64) -> &'a Ease {
+			self.a = a;
+			self as &'a Ease
+		}
+
+		fn p<'a>(&'a mut self, p: f64) -> &'a Ease {
+			self.p = p;
+			self as &'a Ease
+		}
+	}
+
+	impl Ease for ElasticEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			let mut t = t;
+			let p = if self.p.is_nan() {0.3} else {self.p};
+			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
+			if t == 0. {return 0.;}
+			if t == 1. {return 1.;}
+			
+			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
+				p / (2. * PI) * asin(1. / a)
+			};	
+
+			-(a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			let p = if self.p.is_nan() {0.3} else {self.p};
+			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
+			if t == 0. {return 0.;}
+			if t == 1. {return 1.;}
+			
+			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
+				p / (2. * PI) * asin(1. / a)
+			};	
+
+			a * pow(2., -10. * t) * sin((t - s) * (2. * PI) / p) + 1.
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let mut t = t;
+			let p = if self.p.is_nan() {0.3 * 1.5} else {self.p};
+			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
+			if t == 0. {return 0.;}  
+			if {t *= 2.;t} == 2. {return 1.;}
+
+			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
+				p / (2. * PI) * asin(1. / a)
+			};
+			
+			if t < 1. {
+				-0.5 * (a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
+			} else {
+				a * pow(2., -10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p) * 0.5 + 1.
+			}
+		}
+	}
+
+	pub fn elastic() -> ~Ease {
+		~ElasticEase {
+			a: NAN,
+			p: NAN
+		} as ~Ease
+	}
+
+	struct BackEase {
+		s: f64
+	}
+
+	impl BackEase {
+		fn s<'a>(&'a mut self, s: f64) -> &'a Ease {
+			self.s = s;
+			self as &'a Ease
+		}
+	}
+
+	impl Ease for BackEase {
+		fn ease_in(&self, t: f64) -> f64 {
+			let s = self.s;
+			t * t * ((s + 1.) * t - s)
+		}
+		fn ease_out(&self, t: f64) -> f64 {
+			let s = self.s;
+			let u = t - 1.;
+			u * u * ((s + 1.) * u + s) + 1.
+		}
+		fn ease_in_out(&self, t: f64) -> f64 {
+			let s = self.s;
+			let u = t * 2.;
+			if u < 1. {
+				let q = s * 1.525;
+				0.5 * (u * u * ((q + 1.) * u - q))
+			} else {
+				let r = u - 2.;
+				let q = s * 1.525;
+				0.5 * (r * r * ((q + 1.) * r + q) + 2.)
+			}
+		}
+	}
+
+	pub fn back() -> ~Ease {
+		~BackEase {
+			s: 1.70158
+		} as ~Ease
 	}
 
 }
@@ -262,6 +563,8 @@ trait Tween {
 	fn done(&self) -> bool {
 		self.remaining() <= 0.0
 	}
+
+	fn reset(&mut self);
 	
 	fn update(&mut self, delta: f64) -> f64;
 }
@@ -296,6 +599,10 @@ impl<'a, 'b, T: Tweenable + ToStr + 'static> Tween for Single<'a, 'b, T> {
 
 	fn remaining(&self) -> f64 {
 		self.duration - self.current
+	}
+
+	fn reset(&mut self) {
+		self.current = 0f64;
 	}
 
 	fn update(&mut self, delta: f64) -> f64 {
@@ -335,6 +642,13 @@ impl<'a> Tween for Sequence<'a> {
 		self.tweens.iter()/*.skip(self.current - 1)*/.fold(0f64, |a, b| a + b.remaining())
 	}
 
+	fn reset(&mut self) {
+		self.current = 0;
+		for tw in self.tweens.mut_iter() {
+			tw.reset();
+		}
+	}
+
 	fn update(&mut self, delta: f64) -> f64 {
 		let mut remain = delta;
 		while remain > 0f64 && self.current < self.tweens.len() {
@@ -369,6 +683,12 @@ impl<'a> Tween for Parallel<'a> {
 		self.tweens.iter().max_by(|&a| a.remaining()).unwrap().remaining()
 	}
 
+	fn reset(&mut self) {
+		for tw in self.tweens.mut_iter() {
+			tw.reset();
+		}
+	}
+
 	fn update(&mut self, delta: f64) -> f64 {
 		let mut max_remain = 0f64;
 		for tw in self.tweens.mut_iter() {
@@ -399,6 +719,10 @@ impl Tween for Pause {
 		self.duration - self.current
 	}
 
+	fn reset(&mut self) {
+		self.current = 0f64;
+	}
+
 	fn update(&mut self, delta: f64) -> f64 {
 		let remain = self.remaining();
 		self.current += min(remain, delta);
@@ -407,40 +731,59 @@ impl Tween for Pause {
 
 }
 
-pub enum RepeatMode {
-	Reset,
-	Yoyo
+struct Exec {
+	content: fn(),
+	executed: bool
+}
+
+impl Exec {
+	fn new(_content: fn()) -> Exec {
+		Exec {content: _content, executed: false}
+	}
+}
+
+impl Tween for Exec {
+	fn remaining(&self) -> f64 {0.}
+	fn done(&self) -> bool {self.executed}
+	fn reset(&mut self) {self.executed = false;}
+	fn update(&mut self, delta: f64) -> f64 {
+		(self.content)();
+		self.executed = true;
+		delta // Exec consumes no time
+	}
 }
 
 struct Repeat {
 	tween: ~Tween:,
-	mode: RepeatMode
 }
 
 impl Repeat {
-	fn new(_tween: ~Tween:, _mode: RepeatMode) -> Repeat {
+	fn new(_tween: ~Tween:) -> Repeat {
 		Repeat {
 			tween: _tween,
-			mode: _mode
 		}
 	}	
 }
 
-impl<'a, T: Tweenable> Tween for Repeat {
+impl Tween for Repeat {
 
 	fn remaining(&self) -> f64 {
-		std::f64::INFINITY
+		INFINITY
 	}
 
-	fn update(&self, delta: f64) -> f64 {
+	fn reset(&mut self) {
+		self.tween.reset();
+	}
+
+	fn update(&mut self, delta: f64) -> f64 {
 		let mut remain = delta;
 		while remain > 0. {
 			let rest = self.tween.update(remain);
-			if rest <= 0. {
-				match self.mode {
-					Reset => self.tween.reset(),
-					Yoyo => self.direction *= -1
-				}
+			if rest >= 0. {
+				self.tween.reset();
+			} else {
+				// negative rest means: current cycle still running
+				remain += rest;
 			}
 		}
 		0. // It can always continue, so there is no rest
@@ -448,22 +791,26 @@ impl<'a, T: Tweenable> Tween for Repeat {
 
 }
 
-fn from_to<'a, 'b, T: Tweenable + ToStr + 'static>(val: &'a Accessible<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
+pub fn from_to<'a, 'b, T: Tweenable + ToStr + 'static>(val: &'a Accessible<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
 	~Single::new(val.create_access(), start, end, ease, mode, duration) as ~Tween:
 }
 
-fn to<'a, 'b, T: Tweenable + Clone + ToStr + 'static>(val: &'a Accessible<T>, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
+pub fn to<'a, 'b, T: Tweenable + Clone + ToStr + 'static>(val: &'a Accessible<T>, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
 	from_to(val, val.create_access().get(), end, ease, mode, duration)
 }
 
-fn from<'a, 'b, T: Tweenable + Clone + ToStr + 'static>(val: &'a Accessible<T>, start: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
+pub fn from<'a, 'b, T: Tweenable + Clone + ToStr + 'static>(val: &'a Accessible<T>, start: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> ~Tween: {
 	from_to(val, start, val.create_access().get(), ease, mode, duration)
 }
 
-fn seq<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
+pub fn seq<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
 	~Sequence::<'a>::new(_tweens) as ~Tween:
 }
 
-fn par<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
+pub fn par<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
 	~Parallel::<'a>::new(_tweens) as ~Tween:
+}
+
+pub fn exec(content: fn()) -> ~Tween: {
+	~Exec::new(content) as ~Tween:
 }
