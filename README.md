@@ -5,7 +5,7 @@ redox-tween
 
 ## Introduction
 
-Games and other applications often have a need to change values smoothly, without the need for a fully-blown physics system. This is where [Tweening][wikipedia] (Inbe**tween**ing) comes in. It allows to interpolate between numerical values in a lightweight way. 
+Games and other applications often have a need to change values smoothly, without the need for a fully-blown physics system. This is where [Tweening][wikipedia] (Inbe **tween** ing) comes in. It allows to interpolate between numerical values in a lightweight way. 
 
 [This YouTube video][youtube-juice] is an interesting example of how the addition of animations (via tweens) can change the feeling of a game. 
 
@@ -63,7 +63,7 @@ More complex examples will follow.
  - Pauses
  - Function execution
  - Repeated execution
-- Three value access
+- Three value access modes
  - via unsafe pointers
  - via `Cell`
  - via callback functions
