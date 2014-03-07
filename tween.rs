@@ -1,9 +1,9 @@
-#[crate_id = "redox-tween#0.1"]
-#[crate_type = "lib"]
+#[crate_id = "redox-tween#0.1"];
+#[crate_type = "lib"];
 
 use std::ptr;
 use std::cast;
-use std::cmp::{max, min};
+use std::cmp::min;
 use std::clone::Clone;
 use std::cell::Cell;
 use std::f64::INFINITY;
@@ -40,7 +40,7 @@ impl<'a, T: Pod> Access<'a, T> for CellAccess<'a, T> {
 		self.cell.get()
 	}
 
-	#[inline(always)]	
+	#[inline(always)]
 	fn set(&self, val: T) {
 		self.cell.set(val);
 	}
@@ -72,21 +72,21 @@ impl<'a, T:> Access<'a, T> for PtrAccess<'a, T> {
 	#[inline(always)]
 	fn get(&self) -> T {
 		unsafe {
-			ptr::read(cast::transmute_immut_unsafe(self.val))	
+			ptr::read(cast::transmute_immut_unsafe(self.val))
 		}
-	} 
+	}
 
 	#[inline(always)]
 	fn set(&self, new_val: T) {
-		unsafe {		
+		unsafe {
 			*self.val = new_val
 		}
-	}	
+	}
 }
 
 impl<'a, T> Accessible<T> for &'a mut T {
 	fn create_access(&self) -> ~Access:<T> {
-		unsafe {	
+		unsafe {
 			~PtrAccess::<T>::new(cast::transmute_mut(*self)) as ~Access:<T>
 		}
 	}
@@ -145,7 +145,7 @@ trait Interpolation<T> {
 }
 
 impl<T: Tweenable> Interpolation<T> for T {
-	
+
 	#[inline]
 	fn interp_new(&self, start: &T, end: &T, alpha: f64) -> T {
 		*start + (*end - *start).mul_with_f64(alpha)
@@ -192,7 +192,7 @@ impl<T: Tweenable> Interpolation<T> for T {
 pub mod ease {
 	use std::f64::NAN;
 	use std::f64::pow;
-	use std::f64::consts::{PI, FRAC_PI_2, FRAC_PI_4};
+	use std::f64::consts::{PI, FRAC_PI_2};
 	use std::num::{sin, cos, asin, sqrt};
 
 	pub enum Mode {
@@ -204,7 +204,7 @@ pub mod ease {
 	pub trait Ease {
 		#[inline]
 		fn ease_in(&self, t: f64) -> f64;
-		
+
 		#[inline]
 		fn ease_out(&self, t: f64) -> f64 {
 			1.0 - self.ease_in(1.0 - t)
@@ -235,7 +235,7 @@ pub mod ease {
 			(*self)(t)
 		}
 	}
-	
+
 	pub fn clamp<T: Ord>(val: T, low: T, high: T) -> T {
 		if val < low {
 			low
@@ -244,11 +244,6 @@ pub mod ease {
 		} else {
 			val
 		}
-	}
-
-	#[inline(always)]
-	fn square<T: Mul<T, T>>(a: T) -> T {
-		a * a
 	}
 
 	struct LinearEase;
@@ -267,8 +262,8 @@ pub mod ease {
 
 	pub fn linear() -> ~Ease {
 		~LinearEase as ~Ease
-	} 
-	
+	}
+
 	struct QuadEase;
 
 	impl Ease for QuadEase {
@@ -287,7 +282,7 @@ pub mod ease {
 			}
 		}
 	}
-	
+
 	pub fn quad() -> ~Ease {
 		~QuadEase as ~Ease
 	}
@@ -304,11 +299,11 @@ pub mod ease {
 		}
 		fn ease_in_out(&self, t: f64) -> f64 {
 			let s = t * 2.;
-			if s < 1. { 
+			if s < 1. {
 				0.5 * s * s * s
 			} else {
 				let u = s - 2.;
-				0.5 * (u * u * u + 2.) 
+				0.5 * (u * u * u + 2.)
 			}
 		}
 	}
@@ -348,12 +343,12 @@ pub mod ease {
 			t * t * t * t * t
 		}
 		fn ease_out(&self, t: f64) -> f64 {
-			let s = t - 1.;		
+			let s = t - 1.;
 			s * s * s * s * s + 1.
 		}
 		fn ease_in_out(&self, t: f64) -> f64 {
 			let mut t = t;
-			
+
 			if {t *= 2.;t} < 1. {
 				0.5 * t * t * t * t * t
 			} else {
@@ -448,18 +443,6 @@ pub mod ease {
 		p: f64
 	}
 
-	impl ElasticEase {
-		fn a<'a>(&'a mut self, a: f64) -> &'a Ease {
-			self.a = a;
-			self as &'a Ease
-		}
-
-		fn p<'a>(&'a mut self, p: f64) -> &'a Ease {
-			self.p = p;
-			self as &'a Ease
-		}
-	}
-
 	impl Ease for ElasticEase {
 		fn ease_in(&self, t: f64) -> f64 {
 			let mut t = t;
@@ -467,10 +450,10 @@ pub mod ease {
 			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
 			if t == 0. {return 0.;}
 			if t == 1. {return 1.;}
-			
+
 			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
 				p / (2. * PI) * asin(1. / a)
-			};	
+			};
 
 			-(a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
 		}
@@ -479,10 +462,10 @@ pub mod ease {
 			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
 			if t == 0. {return 0.;}
 			if t == 1. {return 1.;}
-			
+
 			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
 				p / (2. * PI) * asin(1. / a)
-			};	
+			};
 
 			a * pow(2., -10. * t) * sin((t - s) * (2. * PI) / p) + 1.
 		}
@@ -490,13 +473,13 @@ pub mod ease {
 			let mut t = t;
 			let p = if self.p.is_nan() {0.3 * 1.5} else {self.p};
 			let a = if self.a.is_nan() || self.a < 1. {1.} else {self.a};
-			if t == 0. {return 0.;}  
+			if t == 0. {return 0.;}
 			if {t *= 2.;t} == 2. {return 1.;}
 
 			let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
 				p / (2. * PI) * asin(1. / a)
 			};
-			
+
 			if t < 1. {
 				-0.5 * (a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
 			} else {
@@ -514,13 +497,6 @@ pub mod ease {
 
 	struct BackEase {
 		s: f64
-	}
-
-	impl BackEase {
-		fn s<'a>(&'a mut self, s: f64) -> &'a Ease {
-			self.s = s;
-			self as &'a Ease
-		}
 	}
 
 	impl Ease for BackEase {
@@ -555,15 +531,15 @@ pub mod ease {
 
 }
 
-trait Tween {	
+trait Tween {
 	fn remaining(&self) -> f64;
-	
+
 	fn done(&self) -> bool {
 		self.remaining() <= 0.0
 	}
 
 	fn reset(&mut self);
-	
+
 	fn update(&mut self, delta: f64) -> f64;
 }
 
@@ -606,7 +582,7 @@ impl<'a, 'b, T: Tweenable + ToStr + 'static> Tween for Single<'a, 'b, T> {
 	fn update(&mut self, delta: f64) -> f64 {
 		let t = self.current / self.duration;
 		let a = self.ease.ease(self.mode, t);
-		self.acc.set(self.acc.get().interp_new(&self.start, &self.end, a));	
+		self.acc.set(self.acc.get().interp_new(&self.start, &self.end, a));
 		let remain = self.remaining();
 		self.current += min(remain, delta);
 		-remain
@@ -631,7 +607,7 @@ impl<'a> Sequence<'a> {
 }
 
 impl<'a> Tween for Sequence<'a> {
-	
+
 	/*fn done(&self) -> bool {
 		self.current >= self.tweens.len() || (self.current + 1 == self.tweens.len() && self.tweens[self.current].done())
 	}*/
@@ -676,7 +652,7 @@ impl<'a> Parallel<'a> {
 }
 
 impl<'a> Tween for Parallel<'a> {
-	
+
 	fn remaining(&self) -> f64 {
 		self.tweens.iter().max_by(|&a| a.remaining()).unwrap().remaining()
 	}
@@ -700,19 +676,18 @@ impl<'a> Tween for Parallel<'a> {
 
 }
 
-struct Pause {
+pub struct Pause {
 	duration: f64,
 	current: f64
 }
 
 impl Pause {
-	fn new(_duration: f64) -> Pause {
+	pub fn new(_duration: f64) -> Pause {
 		Pause {duration: _duration, current: 0f64}
 	}
-}	
+}
 
 impl Tween for Pause {
-	
 	fn remaining(&self) -> f64 {
 		self.duration - self.current
 	}
@@ -751,16 +726,16 @@ impl Tween for Exec {
 	}
 }
 
-struct Repeat {
+pub struct Repeat {
 	tween: ~Tween:,
 }
 
 impl Repeat {
-	fn new(_tween: ~Tween:) -> Repeat {
+	pub fn new(_tween: ~Tween:) -> Repeat {
 		Repeat {
 			tween: _tween,
 		}
-	}	
+	}
 }
 
 impl Tween for Repeat {
