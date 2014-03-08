@@ -35,12 +35,10 @@ impl<'a, T: Pod> CellAccess<'a, T> {
 }
 
 impl<'a, T: Pod> Access<'a, T> for CellAccess<'a, T> {
-	#[inline(always)]
 	fn get(&self) -> T {
 		self.cell.get()
 	}
 
-	#[inline(always)]
 	fn set(&self, val: T) {
 		self.cell.set(val);
 	}
@@ -69,14 +67,12 @@ impl<'a, T:> PtrAccess<'a, T> {
 }
 
 impl<'a, T:> Access<'a, T> for PtrAccess<'a, T> {
-	#[inline(always)]
 	fn get(&self) -> T {
 		unsafe {
 			ptr::read(cast::transmute_immut_unsafe(self.val))
 		}
 	}
 
-	#[inline(always)]
 	fn set(&self, new_val: T) {
 		unsafe {
 			*self.val = new_val
@@ -107,12 +103,10 @@ impl<T> FnAccess<T> {
 }
 
 impl<'a, T> Access<'a, T> for FnAccess<T> {
-	#[inline(always)]
 	fn get(&self) -> T {
 		(self.get)()
 	}
 
-	#[inline(always)]
 	fn set(&self, new_val: T) {
 		(self.set)(new_val)
 	}
@@ -145,22 +139,17 @@ trait Interpolation<T> {
 }
 
 impl<T: Tweenable> Interpolation<T> for T {
-
-	#[inline]
 	fn interp_new(&self, start: &T, end: &T, alpha: f64) -> T {
 		*start + (*end - *start).mul_with_f64(alpha)
 	}
 
-	#[inline]
 	fn interp_new_to(&self, end: &T, alpha: f64) -> T {
 		self.interp_new(self, end, alpha)
 	}
 
-	#[inline]
 	fn interp_apply(&mut self, start: &T, end: &T, alpha: f64) {
 		*self = *start + (*end - *start).mul_with_f64(alpha);
 	}
-
 }
 
 /*mod spec {
@@ -202,15 +191,12 @@ pub mod ease {
 	}
 
 	pub trait Ease {
-		#[inline]
 		fn ease_in(&self, t: f64) -> f64;
 
-		#[inline]
 		fn ease_out(&self, t: f64) -> f64 {
 			1.0 - self.ease_in(1.0 - t)
 		}
 
-		#[inline]
 		fn ease_in_out(&self, t: f64) -> f64 {
 			if t < 0.5 {
 				self.ease_in(2.0 * t) / 2.0
@@ -219,7 +205,6 @@ pub mod ease {
 			}
 		}
 
-		#[inline]
 		fn ease(&self, mode: Mode, t: f64) -> f64 {
 			match mode {
 				In => self.ease_in(t),
@@ -230,7 +215,6 @@ pub mod ease {
 	}
 
 	impl Ease for fn(f64) -> f64 {
-		#[inline(always)]
 		fn ease_in(&self, t: f64) -> f64 {
 			(*self)(t)
 		}
