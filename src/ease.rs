@@ -8,13 +8,19 @@ pub enum Mode {
     InOut
 }
 
+/// A trait for "easing" from one value to another. Easing is an interpolation
+/// between two values, usually non-linear.
 pub trait Ease {
+    /// The only required method in this trait, it represents ???
     fn ease_in(&self, t: f64) -> f64;
 
+    /// What does this do?
     fn ease_out(&self, t: f64) -> f64 {
         1.0 - self.ease_in(1.0 - t)
     }
 
+    /// Ease both in and out, in for the first half, and out for the second
+    /// half.
     fn ease_in_out(&self, t: f64) -> f64 {
         if t < 0.5 {
             self.ease_in(2.0 * t) / 2.0
@@ -23,6 +29,7 @@ pub trait Ease {
         }
     }
 
+    /// Do an ease with a given `Mode`.
     fn ease(&self, mode: Mode, t: f64) -> f64 {
         match mode {
             In => self.ease_in(t),
