@@ -13,7 +13,7 @@ trait Tweenable: Add<Self, Self> + Sub<Self, Self> + MulWithF64 + Pod {}
 
 impl<T: Primitive + FromPrimitive + Pod> Tweenable for T  {}
 
-trait Access<'a, T> {
+trait Access<T> {
 	fn get(&self) -> T;
 	fn set(&self, val: T);
 }
@@ -34,7 +34,7 @@ impl<'a, T: Pod> CellAccess<'a, T> {
 	}
 }
 
-impl<'a, T: Pod> Access<'a, T> for CellAccess<'a, T> {
+impl<'a, T: Pod> Access<T> for CellAccess<'a, T> {
 	fn get(&self) -> T {
 		self.cell.get()
 	}
@@ -50,23 +50,21 @@ impl<T: Pod> Accessible<T> for Cell<T> {
 	}
 }
 
-struct PtrAccess<'a, T> {
+struct PtrAccess<T> {
 	val: *mut T
 }
 
-impl<'a, T:> PtrAccess<'a, T> {
-
-	fn new(new_val: &'a mut T) -> PtrAccess<'a, T> {
+impl<T:> PtrAccess<T> {
+	fn new(new_val: &mut T) -> PtrAccess<T> {
 		PtrAccess {
 			val: unsafe {
 				cast::transmute(new_val)
 			}
 		}
 	}
-
 }
 
-impl<'a, T:> Access<'a, T> for PtrAccess<'a, T> {
+impl<T:> Access<T> for PtrAccess<T> {
 	fn get(&self) -> T {
 		unsafe {
 			ptr::read(cast::transmute_immut_unsafe(self.val))
@@ -102,7 +100,7 @@ impl<T> FnAccess<T> {
 	}
 }
 
-impl<'a, T> Access<'a, T> for FnAccess<T> {
+impl<T> Access<T> for FnAccess<T> {
 	fn get(&self) -> T {
 		(self.get)()
 	}
@@ -502,7 +500,7 @@ trait Tween {
 }
 
 struct Single<'a, 'b, T> {
-	acc: &'a Access<'a, T>,
+	acc: &'a Access<T>,
 	start: T,
 	end: T,
 	current: f64,
@@ -513,7 +511,7 @@ struct Single<'a, 'b, T> {
 
 impl<'a, 'b, T: Tweenable> Single<'a, 'b, T> {
 
-	fn new(_acc: &'a Access<'a, T>, _start: T, _end: T, _ease: &'b ease::Ease, _mode: ease::Mode,_duration: f64) -> Single<'a, 'b, T> {
+	fn new(_acc: &'a Access<T>, _start: T, _end: T, _ease: &'b ease::Ease, _mode: ease::Mode,_duration: f64) -> Single<'a, 'b, T> {
 		Single {
 			acc: _acc,
 			start: _start,
