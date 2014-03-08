@@ -8,6 +8,9 @@
 *.dylib
 
 # Compiled Static libraries
+*.rlib
 *.lai
 *.la
 *.a
+
+*.swp
