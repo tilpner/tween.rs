@@ -28,7 +28,7 @@ should change the hardcoded path. (Yes, it should be an argument)
 
 More complex examples will follow.
 
-[examples]: ./tree/master/src/examples
+[examples]: https://github.com/hoeppnertill/redox-tween/tree/master/src/examples
 
 ## Features
 
