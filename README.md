@@ -1,16 +1,9 @@
-<<<<<<< HEAD
-redox-tween – compiles with rustc 0.10-pre, 2014-02-26
-===========
-
-*This repository contains code that has not been properly tested yet, continue at the risk of doing stupid things while discovering that parts of this library don't work.*
-=======
 redox-tween
 ===========
 
 *This repository contains code that has not been properly tested yet, continue
 at the risk of doing stupid things while discovering parts of this library
 don't work.*
->>>>>>> 740416011222a059c4d1a65f2413c44869923574
 
 ## Introduction
 
@@ -27,31 +20,15 @@ addition of animations (via tweens) can change the feeling of a game.
 
 ## Example
 
-See <src/examples>.
+See [the examples][examples].
 
-<<<<<<< HEAD
-	// the object that performs the change
-	// (subject, target, easing, mode, duration (any unit))	
-	let mut tween = to(& &mut x, 100., ease::quint(), InOut, 10.);
-
-	while ! tween.done() {
-		// advance by 1 unit
-		tween.update(1.);
-		println(x.to_str());
-	}
-}
-
-```
-
-Another example can be found in `images.rs`. Compiling and running it *should* create `.ppm` files of all basic variations of tweens in `/tmp/`. If that directory doesn't exist for you, you should change the hardcoded path. (Yes, it should be an argument)
-=======
 Compiling and running `images.rs` *should* create `.ppm` files of all basic
 variations of tweens in `/tmp/`. If that directory doesn't exit for you, you
 should change the hardcoded path. (Yes, it should be an argument)
->>>>>>> 740416011222a059c4d1a65f2413c44869923574
 
 More complex examples will follow.
 
+[examples]: redox-tween/tree/master/src/examples
 
 ## Features
 
@@ -67,7 +44,7 @@ More complex examples will follow.
  - Back
  - Elastic
  - Bounce
-- Easy to add own equations (just pass `fn(f64) -> f64` as `ease`)
+- Easy to add own equations
 - Easing modes `In`, `Out` and `InOut`
 - Tween organization:
  - Sequential execution
@@ -79,7 +56,6 @@ More complex examples will follow.
  - via unsafe pointers
  - via `Cell`
  - via callback functions
-- API built for conciseness
 
 ## Todo
 
@@ -91,8 +67,6 @@ More complex examples will follow.
 Feedback in any form is strongly desired. Either email me at
 `ubrccare.gvyy@tznvy.pbz` ([rot-13 that][rot13]), create an issue or ping me
 on IRC (nick: flan3002).
-
-If you have an idea/need for a new feature or know how to fix a bug and want to be awesome, please contribute to this project.
 
 [rot13]: http://www.rot13.com/
 
