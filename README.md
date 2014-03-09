@@ -28,7 +28,7 @@ should change the hardcoded path. (Yes, it should be an argument)
 
 More complex examples will follow.
 
-[examples]: /examples
+[examples]: /tree/master/src/examples
 
 ## Features
 
