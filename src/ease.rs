@@ -11,7 +11,8 @@ pub enum Mode {
 /// A trait for "easing" from one value to another. Easing is an interpolation
 /// between two values, usually non-linear.
 pub trait Ease {
-    /// The only required method in this trait, it represents ???
+    /// Map t = 0..1 to an `alpha` value.
+    /// That value is then used to lerp the value in question.
     fn ease_in(&self, t: f64) -> f64;
 
     /// What does this do?

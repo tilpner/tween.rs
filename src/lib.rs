@@ -3,7 +3,7 @@
 
 use std::ptr;
 use std::cast;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::clone::Clone;
 use std::cell::Cell;
 use std::f64::INFINITY;
@@ -11,21 +11,27 @@ use std::num::{ToPrimitive, FromPrimitive};
 
 pub mod ease;
 
+/// Any data that can be interpolated by this library.
 pub trait Tweenable: Add<Self, Self> + Sub<Self, Self> + MulWithF64 + Pod {}
 
-trait Access<T> {
+/// A mutable property which is passed to the tweens.
+/// Chosen because hardcoding access ways is inflexible.
+pub trait Access<T> {
     fn get(&self) -> T;
     fn set(&self, val: T);
 }
 
-trait Accessible<T> {
+/// Any data that can be accessed.
+pub trait Accessible<T> {
     fn create_access(&self) -> ~Access:<T>;
 }
 
-/// A trait for
+/// A single part of a tween tree.
+/// Can do almost anything, examples currently implemented are
+/// `Single`, `Multi`, `Sequence`, `Parallel`, `Pause` and `Exec`.
 pub trait Tween {
     /// The amount of time remaining in this tween. Passing this value to
-    /// `update` should make `done` return true.
+    /// `update` should make `done` return true
     fn remaining(&self) -> f64;
 
     /// Check if the tween has completed
@@ -36,23 +42,36 @@ pub trait Tween {
     /// Reset the tween
     fn reset(&mut self);
 
-    /// Update the tween, assuming `delta` time has passed.
+    /// Update the tween, after `delta` time has passed
     fn update(&mut self, delta: f64) -> f64;
 }
 
+/// Scalar multiplication of the value with an `f64`.
+/// For a vector type, you would want to multiply all its elements with this `f64`.
 trait MulWithF64 {
+    /// Do a scalar multiplication with `rhs`
     fn mul_with_f64(&self, rhs: f64) -> Self;
 }
 
-/// What does this do?
-pub trait Interpolation<T> {
-    fn interp_new(&self, start: &T, end: &T, alpha: f64) -> T;
-
-    fn interp_new_to(&self, end: &T, alpha: f64) -> T;
-
-    fn interp_apply(&mut self, start: &T, end: &T, alpha: f64);
+/// Linear interpolation between two values
+pub trait Lerp<T> {
+    /// Linearly interpolate between `start` and `end`.
+    /// For numbers this could look like:
+    /// ```rust
+    /// fn lerp(&self, start: &f64, end: &f64, alpha: f64) -> f64 {
+    ///     *start + (*end - *start) * alpha
+    /// }
+    /// ```
+    fn lerp(&self, start: &T, end: &T, alpha: f64) -> T;
 }
 
+impl<T: Tweenable> Lerp<T> for T {
+    fn lerp(&self, start: &T, end: &T, alpha: f64) -> T {
+        *start + (*end - *start).mul_with_f64(alpha)
+    }
+}
+
+/// Allow access/tweening via a Cell<T>
 struct CellAccess<'a, T> {
     cell: &'a Cell<T>
 }
@@ -81,6 +100,9 @@ impl<T: Pod> Accessible<T> for Cell<T> {
     }
 }
 
+/// Unsafe access/tweening via mutable raw pointers.
+/// Added to minimize changes to your preexisting model,
+/// if you can please use the `Cell<T>` alternative.
 struct PtrAccess<T> {
     val: *mut T
 }
@@ -117,6 +139,10 @@ impl<'a, T> Accessible<T> for &'a mut T {
     }
 }
 
+/// Access to anything that can't be done via the other two access modes
+/// via callback functions to do what you want.
+/// Also sensible if you want to avoid polling the value, but get direct
+/// event-callbacks.
 struct FnAccess<T> {
     get: fn() -> T,
     set: fn(T)
@@ -158,22 +184,7 @@ impl<T: ToPrimitive + FromPrimitive> MulWithF64 for T {
     }
 }
 
-impl<T: Tweenable> Interpolation<T> for T {
-    fn interp_new(&self, start: &T, end: &T, alpha: f64) -> T {
-        *start + (*end - *start).mul_with_f64(alpha)
-    }
-
-    fn interp_new_to(&self, end: &T, alpha: f64) -> T {
-        self.interp_new(self, end, alpha)
-    }
-
-    fn interp_apply(&mut self, start: &T, end: &T, alpha: f64) {
-        *self = *start + (*end - *start).mul_with_f64(alpha);
-    }
-}
-
-
-/// What does this tween do?
+/// A single tween, interpolating a value between two bounds
 pub struct Single<'a, 'b, T> {
     acc: &'a Access<T>,
     start: T,
@@ -185,7 +196,7 @@ pub struct Single<'a, 'b, T> {
 }
 
 impl<'a, 'b, T: Tweenable> Single<'a, 'b, T> {
-    fn new(_acc: &'a Access<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Single<'a, 'b, T> {
+    fn new(acc: &'a Access<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Single<'a, 'b, T> {
         Single {
             acc: acc,
             start: start,
@@ -211,11 +222,61 @@ impl<'a, 'b, T: Tweenable + ToStr + 'static> Tween for Single<'a, 'b, T> {
     fn update(&mut self, delta: f64) -> f64 {
         let t = self.current / self.duration;
         let a = self.ease.ease(self.mode, t);
-        self.acc.set(self.acc.get().interp_new(&self.start, &self.end, a));
+        self.acc.set(self.acc.get().lerp(&self.start, &self.end, a));
         let remain = self.remaining();
         self.current += min(remain, delta);
         -remain
     }
+}
+
+/// Interpolate between a series of data points.
+/// This could be done less efficiently for `n` 
+/// data points with `n - 1` `Single` tweens.
+pub struct Multi<'a, 'b, T> {
+    acc: &'a Access<T>,
+    data: ~[(T, T, f64, ~ease::Ease, ease::Mode)],
+    current: uint,
+    current_part: f64
+}
+
+impl<'a, 'b, T: Tweenable> Multi<'a, 'b, T> {
+    fn new(acc: &'a Access<T>, data: ~[(T, T, f64, ~ease::Ease, ease::Mode)]) -> Multi<'a, 'b, T> {
+        Multi {
+            acc: acc,
+            data: data,
+            current: 0,
+            current_part: 0.
+        }
+    }
+}
+
+impl <'a, 'b, T: Tweenable> Tween for Multi<'a, 'b, T> {
+    fn remaining(&self) -> f64 {
+        self.data.iter().skip(self.current).map(|&(_, _, b, _, _)| b).fold(0., |a, b| a + b) - self.current_part
+    }
+
+    fn reset(&mut self) {
+        self.current = 0;
+        self.current_part = 0.;
+    }
+
+    fn update(&mut self, delta: f64) -> f64 {
+        let (start, end, dur, ref ease, mode) = self.data[self.current];
+        let a = ease.ease(mode, self.current_part);
+        self.acc.set(self.acc.get().lerp(&start, &end, a));
+        let mut d = delta;
+        while self.current < self.data.len() && d > 0. {
+            let diff = max(min(d, 1. - self.current_part), 0.);
+            self.current_part += diff;
+            d -= diff;
+            if self.current_part >= 1. {
+                self.current_part = 0.;
+                self.current += 1;
+            }
+        }
+        d        
+    }
+
 }
 
 /// A tween that runs other tweens to completion, in order.
@@ -264,7 +325,7 @@ pub struct Parallel {
 }
 
 impl Parallel {
-    fn new(tweens: ~[~Tween:]) -> Parallel<'a> {
+    fn new(tweens: ~[~Tween:]) -> Parallel {
         Parallel {
             tweens: tweens
         }
@@ -325,18 +386,18 @@ impl Tween for Pause {
 }
 
 /// A tween that executes a function when it is updated.
-pub struct Exec<'a> {
-    content: 'a ||,
+pub struct Exec {
+    content: fn(),
     executed: bool
 }
 
 impl Exec {
-    fn new<'a>(content: 'a ||) -> Exec<'a> {
+    fn new(content: fn()) -> Exec {
         Exec {content: content, executed: false}
     }
 }
 
-impl<'a> Tween for Exec<'a> {
+impl Tween for Exec {
     fn remaining(&self) -> f64 {0.}
     fn done(&self) -> bool {self.executed}
     fn reset(&mut self) {self.executed = false;}
@@ -396,14 +457,27 @@ pub fn from<'a, 'b, T: Tweenable + Clone + ToStr + 'static>(val: &'a Accessible<
     from_to(val, start, val.create_access().get(), ease, mode, duration)
 }
 
+pub fn series<'a, 'b, T: Tweenable + ToStr + 'static>(val: &'a Accessible<T>, data: ~[(T, T, f64, ~ease::Ease, ease::Mode)]) -> ~Tween: {
+    ~Multi::new(val.create_access(), data) as ~Tween:
+}
+
 pub fn seq<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
-    ~Sequence::<'a>::new(_tweens) as ~Tween:
+    ~Sequence::new(_tweens) as ~Tween:
 }
 
 pub fn par<'a>(_tweens: ~[~Tween:]) -> ~Tween: {
-    ~Parallel::<'a>::new(_tweens) as ~Tween:
+    ~Parallel::new(_tweens) as ~Tween:
 }
 
 pub fn exec(content: fn()) -> ~Tween: {
     ~Exec::new(content) as ~Tween:
 }
+
+pub fn pause(time: f64) -> ~Tween: {
+    ~Pause::new(time) as ~Tween:
+}
+
+pub fn delay(tw: ~Tween:, time: f64) -> ~Tween: {
+    seq(~[pause(time), tw])
+}
+
