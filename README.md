@@ -20,15 +20,13 @@ addition of animations (via tweens) can change the feeling of a game.
 
 ## Example
 
-See [the examples][examples].
+See [the examples](/src/examples).
 
 Compiling and running `images.rs` *should* create `.ppm` files of all basic
 variations of tweens in `/tmp/`. If that directory doesn't exit for you, you
 should change the hardcoded path. (Yes, it should be an argument)
 
 More complex examples will follow.
-
-[examples]: https://github.com/hoeppnertill/redox-tween/tree/master/src/examples
 
 ## Features
 
