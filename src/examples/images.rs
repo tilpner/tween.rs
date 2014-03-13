@@ -1,11 +1,9 @@
 
 extern crate std;
-extern crate tween;
 
 use tween::ease;
 use tween::ease::{InOut};
 use tween::{from_to, from, to, seq, par};
-
 
 use std::vec;
 use std::path;
@@ -13,6 +11,8 @@ use std::cell::Cell;
 use std::io::fs::File;
 use std::io::BufferedWriter;
 use std::io::{Open, Read, Write, Truncate};
+
+#[path = "../lib.rs"] mod tween;
 
 struct RGB {
     r: u8,

@@ -236,7 +236,7 @@ pub struct Multi<'a, 'b, T> {
     acc: &'a Access<T>,
     data: ~[(T, T, f64, ~ease::Ease, ease::Mode)],
     current: uint,
-    current_part: f64
+    current_time: f64 // is in user-defined duration, not [0;1]
 }
 
 impl<'a, 'b, T: Tweenable> Multi<'a, 'b, T> {
@@ -245,36 +245,41 @@ impl<'a, 'b, T: Tweenable> Multi<'a, 'b, T> {
             acc: acc,
             data: data,
             current: 0,
-            current_part: 0.
+            current_time: 0.
         }
     }
 }
 
 impl <'a, 'b, T: Tweenable> Tween for Multi<'a, 'b, T> {
     fn remaining(&self) -> f64 {
-        self.data.iter().skip(self.current).map(|&(_, _, b, _, _)| b).fold(0., |a, b| a + b) - self.current_part
+        self.data.iter().skip(self.current).map(|&(_, _, b, _, _)| b).fold(0., |a, b| a + b) - self.current_time
     }
 
     fn reset(&mut self) {
         self.current = 0;
-        self.current_part = 0.;
+        self.current_time = 0.;
     }
 
-    fn update(&mut self, delta: f64) -> f64 {
-        let (start, end, dur, ref ease, mode) = self.data[self.current];
-        let a = ease.ease(mode, self.current_part);
-        self.acc.set(self.acc.get().lerp(&start, &end, a));
-        let mut d = delta;
-        while self.current < self.data.len() && d > 0. {
-            let diff = max(min(d, 1. - self.current_part), 0.);
-            self.current_part += diff;
-            d -= diff;
-            if self.current_part >= 1. {
-                self.current_part = 0.;
+    fn update(&mut self, mut delta: f64) -> f64 {
+        let (_, _, dur, _, _) = self.data[self.current];
+        //delta /= dur; // normalize from duration to [0;1]
+        self.current_time += delta;
+
+        // wrap time around till between bounds
+        loop {
+            let (_, _, dur, _, _) = self.data[self.current];
+            if self.current_time - dur > 0. {
+                self.current_time -= dur;
                 self.current += 1;
+            } else {
+                break;
             }
         }
-        d        
+
+        let (start, end, dur, ref ease, mode) = self.data[self.current];
+        let a = ease.ease(mode, self.current_time / dur);
+        self.acc.set(self.acc.get().lerp(&start, &end, a));
+        delta
     }
 
 }
