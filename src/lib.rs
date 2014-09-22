@@ -1,4 +1,4 @@
-#![crate_name = "tween"]
+#![crate_name = "redox-tween"]
 #![crate_type = "lib"]
 
 use std::ptr;
