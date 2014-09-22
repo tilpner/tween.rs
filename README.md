@@ -1,4 +1,4 @@
-redox-tween
+redox-tween ![Travis CI](https://travis-ci.org/hoeppnertill/redox-tween.svg?branch=master)
 ===========
 
 *This repository contains code that has not been properly tested yet, continue
