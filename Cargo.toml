@@ -1,0 +1,5 @@
+[package]
+
+name = "redox-tween"
+version = "0.0.1"
+authors = ["Till Hoeppner <till@hoeppner.ws>"]
