@@ -1,6 +1,5 @@
-use std::f64::NAN; use std::f64::pow;
+use std::f64::NAN; 
 use std::f64::consts::{PI, FRAC_PI_2};
-use std::num::{sin, cos, asin, sqrt};
 
 pub enum Mode {
     In,
@@ -15,7 +14,7 @@ pub trait Ease {
     /// That value is then used to lerp the value in question.
     fn ease_in(&self, t: f64) -> f64;
 
-    /// What does this do?
+    /// Ease out, by default based on ease_in.
     fn ease_out(&self, t: f64) -> f64 {
         1.0 - self.ease_in(1.0 - t)
     }
@@ -70,8 +69,8 @@ impl Ease for LinearEase {
     }
 }
 
-pub fn linear() -> ~Ease {
-    ~LinearEase as ~Ease
+pub fn linear() -> Box<Ease + 'static> {
+    box LinearEase as Box<Ease + 'static>
 }
 
 struct QuadEase;
@@ -93,8 +92,8 @@ impl Ease for QuadEase {
     }
 }
 
-pub fn quad() -> ~Ease {
-    ~QuadEase as ~Ease
+pub fn quad() -> Box<Ease + 'static> {
+    box QuadEase as Box<Ease + 'static>
 }
 
 struct CubicEase;
@@ -118,8 +117,8 @@ impl Ease for CubicEase {
     }
 }
 
-pub fn cubic() -> ~Ease {
-    ~CubicEase as ~Ease
+pub fn cubic() -> Box<Ease + 'static> {
+    box CubicEase as Box<Ease + 'static>
 }
 
 struct QuartEase;
@@ -142,8 +141,8 @@ impl Ease for QuartEase {
     }
 }
 
-pub fn quart() -> ~Ease {
-    ~QuartEase as ~Ease
+pub fn quart() -> Box<Ease + 'static> {
+    box QuartEase as Box<Ease + 'static>
 }
 
 struct QuintEase;
@@ -167,52 +166,52 @@ impl Ease for QuintEase {
     }
 }
 
-pub fn quint() -> ~Ease {
-    ~QuintEase as ~Ease
+pub fn quint() -> Box<Ease + 'static> {
+    box QuintEase as Box<Ease + 'static>
 }
 
 struct SineEase;
 
 impl Ease for SineEase {
     fn ease_in(&self, t: f64) -> f64 {
-        -cos(t * FRAC_PI_2) + 1.
+        -(t * FRAC_PI_2).cos() + 1.
     }
     fn ease_out(&self, t: f64) -> f64 {
-        sin(t * FRAC_PI_2)
+        (t * FRAC_PI_2).sin()
     }
     fn ease_in_out(&self, t: f64) -> f64 {
-        -0.5 * (cos(PI * t) - 1.)
+        -0.5 * ((PI * t).cos() - 1.)
     }
 }
 
-pub fn sine() -> ~Ease {
-    ~SineEase as ~Ease
+pub fn sine() -> Box<Ease + 'static> {
+    box SineEase as Box<Ease + 'static>
 }
 
 struct CircEase;
 
 impl Ease for CircEase {
     fn ease_in(&self, t: f64) -> f64 {
-        -sqrt(1. - t * t) + 1.
+        -(1. - t * t).sqrt() + 1.
     }
 
     fn ease_out(&self, t: f64) -> f64 {
         let mut t = t;
-        sqrt(1. - {t -= 1.;t} * t)
+        (1. - {t -= 1.;t} * t).sqrt()
     }
 
     fn ease_in_out(&self, t: f64) -> f64 {
         let mut t = t;
         if {t *= 2.;t} < 1. {
-            -0.5 * (sqrt(1. - t * t) - 1.)
+            -0.5 * ((1. - t * t).sqrt() - 1.)
         } else {
-            0.5 * (sqrt(1. - {t -= 2.;t} * t) + 1.)
+            0.5 * ((1. - {t -= 2.;t} * t).sqrt() + 1.)
         }
     }
 }
 
-pub fn circ() -> ~Ease {
-    ~CircEase as ~Ease
+pub fn circ() -> Box<Ease + 'static> {
+    box CircEase as Box<Ease + 'static>
 }
 
 struct BounceEase;
@@ -244,8 +243,8 @@ impl Ease for BounceEase {
     }
 }
 
-pub fn bounce() -> ~Ease {
-    ~BounceEase as ~Ease
+pub fn bounce() -> Box<Ease + 'static> {
+    box BounceEase as Box<Ease + 'static>
 }
 
 struct ElasticEase {
@@ -262,10 +261,10 @@ impl Ease for ElasticEase {
         if t == 1. {return 1.;}
 
         let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
-            p / (2. * PI) * asin(1. / a)
+            p / (2. * PI) * (1. / a).asin()
         };
 
-        -(a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
+        -(a * 2.0f64.powf(10. * {t -= 1.;t}) * ((t - s) * (2. * PI) / p).sin())
     }
     fn ease_out(&self, t: f64) -> f64 {
         let p = if self.p.is_nan() {0.3} else {self.p};
@@ -274,10 +273,10 @@ impl Ease for ElasticEase {
         if t == 1. {return 1.;}
 
         let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
-            p / (2. * PI) * asin(1. / a)
+            p / (2. * PI) * (1. / a).asin()
         };
 
-        a * pow(2., -10. * t) * sin((t - s) * (2. * PI) / p) + 1.
+        a * 2.0f64.powf(-10. * t) * ((t - s) * (2. * PI) / p).sin() + 1.
     }
     fn ease_in_out(&self, t: f64) -> f64 {
         let mut t = t;
@@ -287,22 +286,22 @@ impl Ease for ElasticEase {
         if {t *= 2.;t} == 2. {return 1.;}
 
         let s = if self.a.is_nan() || self.a < 1. {p / 4.} else {
-            p / (2. * PI) * asin(1. / a)
+            p / (2. * PI) * (1. / a).asin()
         };
 
         if t < 1. {
-            -0.5 * (a * pow(2., 10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p))
+            -0.5 * (a * 2.0f64.powf(10. * {t -= 1.;t}) * ((t - s) * (2. * PI) / p).sin())
         } else {
-            a * pow(2., -10. * {t -= 1.;t}) * sin((t - s) * (2. * PI) / p) * 0.5 + 1.
+            a * 2.0f64.powf(-10. * {t -= 1.;t}) * ((t - s) * (2. * PI) / p).sin() * 0.5 + 1.
         }
     }
 }
 
-pub fn elastic() -> ~Ease {
-    ~ElasticEase {
+pub fn elastic() -> Box<Ease + 'static> {
+    box ElasticEase {
         a: NAN,
         p: NAN
-    } as ~Ease
+    } as Box<Ease + 'static>
 }
 
 struct BackEase {
@@ -333,8 +332,8 @@ impl Ease for BackEase {
     }
 }
 
-pub fn back() -> ~Ease {
-    ~BackEase {
+pub fn back() -> Box<Ease + 'static> {
+    box BackEase {
         s: 1.70158
-    } as ~Ease
+    } as Box<Ease + 'static>
 }
