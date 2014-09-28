@@ -520,20 +520,20 @@ impl Tween for Reverse {
 }
 
 
-pub fn from_to<'a, T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, start: T, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
+pub fn from_to<'a, T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<'a, T, A>, start: T, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
     Single::new(val.create_access(), start, end, ease, mode, duration)
 }
 
-pub fn to<'a, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
+pub fn to<'a, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<'a, T, A>, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
     from_to(val, val.create_access().get(), end, ease, mode, duration)
 }
 
-pub fn from<'a, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, start: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
+pub fn from<'a, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<'a, T, A>, start: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
     from_to(val, start, val.create_access().get(), ease, mode, duration)
 }
 
-pub fn series<'a, T: Tweenable + 'static, A: Access<T>>(val: &'a Accessible<T, A>, data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>) -> Multi<'a, 'a, T> {
-    Multi::new(val.create_access(), data)
+pub fn series<'a, T: Tweenable + 'static, A: Access<T> + 'a>(val: &'a Accessible<'a, T, A>, data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>) -> Multi<'a, 'a, T> {
+    Multi::new(&val.create_access(), data)
 }
 
 pub fn seq<'a>(_tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
