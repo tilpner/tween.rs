@@ -1,15 +1,23 @@
 #![crate_name = "redox-tween"]
 #![crate_type = "lib"]
 
+#![feature(associated_types)]
+
 use std::ptr;
+use std::cmp;
 use std::num::cast;
-use std::cmp::{max, min};
+use std::cmp::{max};
 use std::clone::Clone;
 use std::cell::Cell;
 use std::f64::INFINITY;
 use std::num::{ToPrimitive, FromPrimitive};
 use std::mem;
 
+use partial_iter::PartialExtremes;
+
+use ease::Ease;
+
+pub mod partial_iter;
 pub mod ease;
 
 /// Any data that can be interpolated by this library.
@@ -23,8 +31,8 @@ pub trait Access<T> {
 }
 
 /// Any data that can be accessed.
-pub trait Accessible<T> {
-    fn create_access(&self) -> Access<T>;
+pub trait Accessible<'a, T, A: Access<T>> {
+    fn create_access(&'a self) -> A;
 }
 
 /// A single part of a tween tree.
@@ -33,17 +41,21 @@ pub trait Accessible<T> {
 pub trait Tween {
     /// The amount of time remaining in this tween. Passing this value to
     /// `update` should make `done` return true
+    #[inline]
     fn remaining(&self) -> f64;
 
     /// Check if the tween has completed
+    #[inline]
     fn done(&self) -> bool {
         self.remaining() <= 0.0
     }
 
     /// Reset the tween
+    #[inline]
     fn reset(&mut self);
 
     /// Update the tween, after `delta` time has passed
+    #[inline]
     fn update(&mut self, delta: f64) -> f64;
 }
 
@@ -51,6 +63,7 @@ pub trait Tween {
 /// For a vector type, you would want to multiply all its elements with this `f64`.
 trait MulWithF64 {
     /// Do a scalar multiplication with `rhs`
+    #[inline]
     fn mul_with_f64(&self, rhs: f64) -> Self;
 }
 
@@ -63,10 +76,12 @@ pub trait Lerp<T> {
     ///     *start + (*end - *start) * alpha
     /// }
     /// ```
+    #[inline]
     fn lerp(&self, start: &T, end: &T, alpha: f64) -> T;
 }
 
 impl<T: Tweenable> Lerp<T> for T {
+    #[inline]
     fn lerp(&self, start: &T, end: &T, alpha: f64) -> T {
         *start + (*end - *start).mul_with_f64(alpha)
     }
@@ -78,6 +93,7 @@ struct CellAccess<'a, T: 'a> {
 }
 
 impl<'a, T> CellAccess<'a, T> {
+    #[inline]
     fn new(val: &'a Cell<T>) -> CellAccess<'a, T> {
         CellAccess {
             cell: val
@@ -86,45 +102,51 @@ impl<'a, T> CellAccess<'a, T> {
 }
 
 impl<'a, T: Copy> Access<T> for CellAccess<'a, T> {
+    #[inline]
     fn get(&self) -> T {
         self.cell.get()
     }
 
+    #[inline]
     fn set(&self, val: T) {
         self.cell.set(val);
     }
 }
 
-impl<T: Copy> Accessible<T> for Cell<T> {
-    fn create_access(&self) -> Access<T> {
-        CellAccess::new(self) as Access<T>
+impl<'a, T: Copy> Accessible<'a, T, CellAccess<'a, T>> for Cell<T> {
+    #[inline]
+    fn create_access(&'a self) -> CellAccess<'a, T> {
+        CellAccess::new(self)
     }
 }
 
 /// Unsafe access/tweening via mutable raw pointers.
-/// Added to minimize changes to your preexisting model,
-/// if you can please use the `Cell<T>` alternative.
+/// Added to minimize changes to your preexisting model.
+/// If you can, please use the `Cell<T>` alternative.
 struct PtrAccess<T> {
     val: *mut T
 }
 
 impl<T:> PtrAccess<T> {
+    #[inline]
     fn new(new_val: &mut T) -> PtrAccess<T> {
         PtrAccess {
             val: unsafe {
                      mem::transmute(new_val)
-                 }
+            }
         }
     }
 }
 
 impl<T:> Access<T> for PtrAccess<T> {
+    #[inline]
     fn get(&self) -> T {
         unsafe {
             ptr::read(mem::transmute(self.val))
         }
     }
 
+    #[inline]
     fn set(&self, new_val: T) {
         unsafe {
             *self.val = new_val
@@ -132,10 +154,11 @@ impl<T:> Access<T> for PtrAccess<T> {
     }
 }
 
-impl<'a, T> Accessible<T> for &'a mut T {
-    fn create_access(&self) -> Access<T> {
+impl<'a, T> Accessible<'a, T, PtrAccess<T>> for &'a mut T {
+    #[inline]
+    fn create_access(&'a self) -> PtrAccess<T> {
         unsafe {
-            PtrAccess::<T>::new(mem::transmute(*self)) as Access<T>
+            PtrAccess::<T>::new(mem::transmute(*self))
         }
     }
 }
@@ -144,13 +167,14 @@ impl<'a, T> Accessible<T> for &'a mut T {
 /// via callback functions to do what you want.
 /// Also sensible if you want to avoid polling the value, but get direct
 /// event-callbacks.
-struct FnAccess<T> {
-    get: fn() -> T,
-    set: fn(T)
+struct FnAccess<T, F: Fn<(), T>, G: Fn<T, ()>> {
+    get: F,
+    set: G
 }
 
-impl<T> FnAccess<T> {
-    fn new(get: fn() -> T, set: fn(T)) -> FnAccess<T> {
+impl<T, F: Fn<(), T>, G: Fn<T, ()>> FnAccess<T, F, G> {
+    #[inline]
+    fn new(get: F, set: G) -> FnAccess<T, F, G> {
         FnAccess {
             get: get,
             set: set
@@ -158,20 +182,23 @@ impl<T> FnAccess<T> {
     }
 }
 
-impl<T> Access<T> for FnAccess<T> {
+impl<T, F: Fn<(), T>, G: Fn<T, ()>> Access<T> for FnAccess<T, F, G> {
+    #[inline]
     fn get(&self) -> T {
-        (self.get)()
+        self.get()
     }
 
+    #[inline]
     fn set(&self, new_val: T) {
-        (self.set)(new_val)
+        self.set(new_val)
     }
 }
 
-impl<T> Accessible<T> for (fn() -> T, fn(T)) {
-    fn create_access(&self) -> Box<Access<T>> {
+impl<'a, T: Copy, F: Fn<(), T>, G: Fn<T, ()>> Accessible<'a, T, FnAccess<T, F, G>> for (F, G) {
+    #[inline]
+    fn create_access(&self) -> FnAccess<T, F, G> {
         match *self {
-            (get, set) => box FnAccess::new(get, set) as Box<Access<T>>
+            (get, set) => FnAccess::new(get, set)
         }
     }
 }
@@ -180,24 +207,25 @@ impl<T: Primitive + FromPrimitive + FloatMath> Tweenable for T  {}
 
 
 impl<T: ToPrimitive + FromPrimitive> MulWithF64 for T {
+    #[inline]
     fn mul_with_f64(&self, rhs: f64) -> T {
         FromPrimitive::from_f64(self.to_f64().unwrap() * rhs).unwrap()
     }
 }
 
 /// A single tween, interpolating a value between two bounds
-pub struct Single<'a, 'b, T> {
-    acc: &'a Access<T> + 'a,
+pub struct Single<'a, T, A: Access<T>, E: Ease> {
+    acc: A,
     start: T,
     end: T,
     current: f64,
     duration: f64,
-    ease: &'b ease::Ease + 'b,
+    ease: E,
     mode: ease::Mode
 }
 
-impl<'a, 'b, T: Tweenable> Single<'a, 'b, T> {
-    fn new(acc: &'a Access<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Single<'a, 'b, T> {
+impl<'a, T: Tweenable, A: Access<T>, E: Ease> Single<'a, T, A, E> {
+    fn new(acc: A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
         Single {
             acc: acc,
             start: start,
@@ -211,7 +239,7 @@ impl<'a, 'b, T: Tweenable> Single<'a, 'b, T> {
 
 }
 
-impl<'a, 'b, T: Tweenable + 'static> Tween for Single<'a, 'b, T> {
+impl<'a, T: Tweenable + 'static, A: Access<T>, E: Ease> Tween for Single<'a, T, A, E> {
     fn remaining(&self) -> f64 {
         self.duration - self.current
     }
@@ -225,13 +253,13 @@ impl<'a, 'b, T: Tweenable + 'static> Tween for Single<'a, 'b, T> {
         let a = self.ease.ease(self.mode, t);
         self.acc.set(self.acc.get().lerp(&self.start, &self.end, a));
         let remain = self.remaining();
-        self.current += min(remain, delta);
+        self.current += cmp::partial_min(remain, delta).unwrap();
         -remain
     }
 }
 
 /// Interpolate between a series of data points.
-/// This could be done less efficiently for `n` 
+/// This could be done less efficiently for `n`
 /// data points with `n - 1` `Single` tweens.
 pub struct Multi<'a, 'b, T> {
     acc: &'a Access<T> + 'a,
@@ -241,7 +269,7 @@ pub struct Multi<'a, 'b, T> {
 }
 
 impl<'a, 'b, T: Tweenable> Multi<'a, 'b, T> {
-    fn new(acc: &'a Access<T>, data: Box<[(T, T, f64, Box<ease::Ease>, ease::Mode)]>) -> Multi<'a, 'b, T> {
+    fn new(acc: &'a Access<T>, data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>) -> Multi<'a, 'b, T> {
         Multi {
             acc: acc,
             data: data,
@@ -345,7 +373,7 @@ impl Parallel {
 impl Tween for Parallel {
     /// The max remaining time of all wrapped tweens
     fn remaining(&self) -> f64 {
-        self.tweens.iter().max_by(|&a| a.remaining()).unwrap().remaining()
+        self.tweens.iter().partial_max_by(|&a| a.remaining()).unwrap().remaining()
     }
 
     /// Reset every wrapped tween.
@@ -359,8 +387,8 @@ impl Tween for Parallel {
         let mut max_remain = 0f64;
         for tw in self.tweens.mut_iter() {
             let remain = tw.remaining();
-            if remain > max_remain {max_remain = remain;}
-            tw.update(min(remain, delta));
+            if remain > max_remain { max_remain = remain; }
+            tw.update(cmp::partial_min(remain, delta).unwrap());
         }
         max_remain - delta
     }
@@ -390,7 +418,7 @@ impl Tween for Pause {
 
     fn update(&mut self, delta: f64) -> f64 {
         let remain = self.remaining();
-        self.current += min(remain, delta);
+        self.current += cmp::partial_min(remain, delta).unwrap();
         -remain
     }
 }
@@ -492,20 +520,20 @@ impl Tween for Reverse {
 }
 
 
-pub fn from_to<'a, 'b, T: Tweenable + 'static>(val: &'a Accessible<T>, start: T, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Box<Tween + 'static> {
-    box Single::new(val.create_access(), start, end, ease, mode, duration) as Box<Tween + 'static>
+pub fn from_to<'a, 'b, T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, start: T, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
+    Single::new(val.create_access(), start, end, ease, mode, duration)
 }
 
-pub fn to<'a, 'b, T: Tweenable + Clone + 'static>(val: &'a Accessible<T>, end: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Box<Tween + 'static> {
+pub fn to<'a, 'b, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, end: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
     from_to(val, val.create_access().get(), end, ease, mode, duration)
 }
 
-pub fn from<'a, 'b, T: Tweenable + Clone + 'static>(val: &'a Accessible<T>, start: T, ease: &'b ease::Ease, mode: ease::Mode, duration: f64) -> Box<Tween + 'static> {
+pub fn from<'a, 'b, T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>(val: &'a Accessible<T, A>, start: T, ease: E, mode: ease::Mode, duration: f64) -> Single<'a, T, A, E> {
     from_to(val, start, val.create_access().get(), ease, mode, duration)
 }
 
-pub fn series<'a, 'b, T: Tweenable + 'static>(val: &'a Accessible<T>, data: Box<[(T, T, f64, Box<ease::Ease>, ease::Mode)]>) -> Box<Tween + 'static> {
-    box Multi::new(val.create_access(), data) as Box<Tween + 'static>
+pub fn series<'a, 'b, T: Tweenable + 'static, A: Access<T>>(val: &'a Accessible<T, A>, data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>) -> Multi<'a, 'a, T> {
+    Multi::new(val.create_access(), data)
 }
 
 pub fn seq<'a>(_tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
