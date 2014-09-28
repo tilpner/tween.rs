@@ -1,4 +1,4 @@
-trait PartialExtremes<A>: Iterator<A> {
+pub trait PartialExtremes<A>: Iterator<A> {
 
     fn partial_max_by<B: PartialOrd>(&mut self, f: |&A| -> B) -> Option<A> {
         self.fold(None, |max: Option<(A, B)>, x| {

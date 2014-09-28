@@ -61,7 +61,7 @@ pub trait Tween {
 
 /// Scalar multiplication of the value with an `f64`.
 /// For a vector type, you would want to multiply all its elements with this `f64`.
-trait MulWithF64 {
+pub trait MulWithF64 {
     /// Do a scalar multiplication with `rhs`
     #[inline]
     fn mul_with_f64(&self, rhs: f64) -> Self;
@@ -88,7 +88,7 @@ impl<T: Tweenable> Lerp<T> for T {
 }
 
 /// Allow access/tweening via a Cell<T>
-struct CellAccess<'a, T: 'a> {
+pub struct CellAccess<'a, T: 'a> {
     cell: &'a Cell<T>
 }
 
@@ -123,7 +123,7 @@ impl<'a, T: Copy> Accessible<'a, T, CellAccess<'a, T>> for Cell<T> {
 /// Unsafe access/tweening via mutable raw pointers.
 /// Added to minimize changes to your preexisting model.
 /// If you can, please use the `Cell<T>` alternative.
-struct PtrAccess<T> {
+pub struct PtrAccess<T> {
     val: *mut T
 }
 
@@ -167,7 +167,7 @@ impl<'a, T> Accessible<'a, T, PtrAccess<T>> for &'a mut T {
 /// via callback functions to do what you want.
 /// Also sensible if you want to avoid polling the value, but get direct
 /// event-callbacks.
-struct FnAccess<T, F: Fn<(), T>, G: Fn<T, ()>> {
+pub struct FnAccess<T, F: Fn<(), T>, G: Fn<T, ()>> {
     get: F,
     set: G
 }
