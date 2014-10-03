@@ -145,7 +145,7 @@ pub fn quart() -> Box<Ease + 'static> {
     box QuartEase as Box<Ease + 'static>
 }
 
-struct QuintEase;
+pub struct QuintEase;
 
 impl Ease for QuintEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -166,8 +166,8 @@ impl Ease for QuintEase {
     }
 }
 
-pub fn quint() -> Box<Ease + 'static> {
-    box QuintEase as Box<Ease + 'static>
+pub fn quint() -> QuintEase {
+    QuintEase
 }
 
 struct SineEase;
