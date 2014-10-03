@@ -1,6 +1,7 @@
-use std::f64::NAN; 
+use std::f64::NAN;
 use std::f64::consts::{PI, FRAC_PI_2};
 
+#[deriving(Clone)]
 pub enum Mode {
     In,
     Out,
@@ -9,7 +10,7 @@ pub enum Mode {
 
 /// A trait for "easing" from one value to another. Easing is an interpolation
 /// between two values, usually non-linear.
-pub trait Ease {
+pub trait Ease: Sized + Clone {
     /// Map t = 0..1 to an `alpha` value.
     /// That value is then used to lerp the value in question.
     fn ease_in(&self, t: f64) -> f64;
@@ -39,22 +40,19 @@ pub trait Ease {
     }
 }
 
+impl<'a> Clone for Box<Ease + 'a> {
+    fn clone(&self) -> Box<Ease + 'a> {
+        self.clone()
+    }
+}
+
 impl Ease for fn(f64) -> f64 {
     fn ease_in(&self, t: f64) -> f64 {
         (*self)(t)
     }
 }
 
-pub fn clamp<T: Ord>(val: T, low: T, high: T) -> T {
-    if val < low {
-        low
-    } else if val > high {
-        high
-    } else {
-        val
-    }
-}
-
+#[deriving(Clone)]
 struct LinearEase;
 
 impl Ease for LinearEase {
@@ -73,6 +71,7 @@ pub fn linear() -> Box<Ease + 'static> {
     box LinearEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct QuadEase;
 
 impl Ease for QuadEase {
@@ -96,6 +95,7 @@ pub fn quad() -> Box<Ease + 'static> {
     box QuadEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct CubicEase;
 
 impl Ease for CubicEase {
@@ -121,6 +121,7 @@ pub fn cubic() -> Box<Ease + 'static> {
     box CubicEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct QuartEase;
 
 impl Ease for QuartEase {
@@ -145,6 +146,7 @@ pub fn quart() -> Box<Ease + 'static> {
     box QuartEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 pub struct QuintEase;
 
 impl Ease for QuintEase {
@@ -170,6 +172,7 @@ pub fn quint() -> QuintEase {
     QuintEase
 }
 
+#[deriving(Clone)]
 struct SineEase;
 
 impl Ease for SineEase {
@@ -188,6 +191,7 @@ pub fn sine() -> Box<Ease + 'static> {
     box SineEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct CircEase;
 
 impl Ease for CircEase {
@@ -214,6 +218,7 @@ pub fn circ() -> Box<Ease + 'static> {
     box CircEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct BounceEase;
 
 impl Ease for BounceEase {
@@ -247,6 +252,7 @@ pub fn bounce() -> Box<Ease + 'static> {
     box BounceEase as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct ElasticEase {
     a: f64,
     p: f64
@@ -304,6 +310,7 @@ pub fn elastic() -> Box<Ease + 'static> {
     } as Box<Ease + 'static>
 }
 
+#[deriving(Clone)]
 struct BackEase {
     s: f64
 }

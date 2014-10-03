@@ -3,15 +3,10 @@
 
 #![feature(associated_types, overloaded_calls)]
 
-use std::ptr;
 use std::cmp;
-use std::num::cast;
-use std::cmp::{max};
-use std::clone::Clone;
 use std::cell::Cell;
 use std::f64::INFINITY;
 use std::num::{ToPrimitive, FromPrimitive};
-use std::mem;
 
 use partial_iter::PartialExtremes;
 
@@ -33,7 +28,7 @@ pub trait Access<T>: Copy {
 /// A single part of a tween tree.
 /// Can do almost anything, examples currently implemented are
 /// `Single`, `Multi`, `Sequence`, `Parallel`, `Pause` and `Exec`.
-pub trait Tween: Sized {
+pub trait Tween: Sized + Clone {
     /// The amount of time remaining in this tween. Passing this value to
     /// `update` should make `done` return true
     #[inline]
@@ -52,6 +47,24 @@ pub trait Tween: Sized {
     /// Update the tween, after `delta` time has passed
     #[inline]
     fn update(&mut self, delta: f64) -> f64;
+}
+
+impl<'a> Clone for Box<Tween + 'a> {
+    fn clone(&self) -> Box<Tween + 'a> {
+        self.clone()
+    }
+}
+
+impl<'a> Clone for Box<[Box<Tween + 'a>]> {
+    fn clone(&self) -> Box<[Box<Tween + 'a>]> {
+        self.clone()
+    }
+}
+
+impl<'a, T: Clone> Clone for Box<[(T, T, f64, Box<ease::Ease + 'a>, ease::Mode)]> {
+    fn clone(&self) -> Box<[(T, T, f64, Box<ease::Ease + 'a>, ease::Mode)]> {
+        self.clone()
+    }
 }
 
 /// Scalar multiplication of the value with an `f64`.
@@ -131,6 +144,7 @@ impl<T: ToPrimitive + FromPrimitive> MulWithF64 for T {
 }
 
 /// A single tween, interpolating a value between two bounds
+#[deriving(Clone)]
 pub struct Single<T, A: Access<T>, E: Ease> {
     acc: A,
     start: T,
@@ -156,7 +170,7 @@ impl<T: Tweenable, A: Access<T>, E: Ease> Single<T, A, E> {
 
 }
 
-impl<T: Tweenable + 'static, A: Access<T>, E: Ease> Tween for Single<T, A, E> {
+impl<T: Tweenable + 'static, A: Access<T> + Clone, E: Ease + Clone> Tween for Single<T, A, E> {
     fn remaining(&self) -> f64 {
         self.duration - self.current
     }
@@ -180,6 +194,7 @@ impl<T: Tweenable + 'static, A: Access<T>, E: Ease> Tween for Single<T, A, E> {
 /// Interpolate between a series of data points.
 /// This could be done less efficiently for `n`
 /// data points with `n - 1` `Single` tweens.
+#[deriving(Clone)]
 pub struct Multi<T, A: Access<T>> {
     acc: A,
     data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>,
@@ -198,7 +213,7 @@ impl<T: Tweenable, A: Access<T>> Multi<T, A> {
     }
 }
 
-impl <T: Tweenable, A: Access<T>> Tween for Multi<T, A> {
+impl <T: Tweenable, A: Access<T> + Clone> Tween for Multi<T, A> {
     fn remaining(&self) -> f64 {
         self.data.iter().skip(self.current).map(|&(_, _, b, _, _)| b).fold(0., |a, b| a + b) - self.current_time
     }
@@ -236,13 +251,14 @@ impl <T: Tweenable, A: Access<T>> Tween for Multi<T, A> {
 /// A tween that runs other tweens to completion, in order.
 /// It will switch to the next tween in the vector once the current tween
 /// returns `true` when `done` is called.
-pub struct Sequence {
-    tweens: Box<[Box<Tween + 'static>]>,
+#[deriving(Clone)]
+pub struct Sequence<'a> {
+    tweens: Box<[Box<Tween + 'a>]>,
     current: uint
 }
 
-impl Sequence {
-    fn new(tweens: Box<[Box<Tween + 'static>]>) -> Sequence {
+impl<'a> Sequence<'a> {
+    fn new(tweens: Box<[Box<Tween + 'static>]>) -> Sequence<'a> {
         Sequence {
             tweens: tweens,
             current: 0u
@@ -250,7 +266,7 @@ impl Sequence {
     }
 }
 
-impl Tween for Sequence {
+impl<'a> Tween for Sequence<'a> {
     fn remaining(&self) -> f64 {
         self.tweens.iter().fold(0f64, |a, b| a + b.remaining())
     }
@@ -278,6 +294,7 @@ impl Tween for Sequence {
 /// If this tween is updated, all it's child tweens are
 /// updated by the same amount of time, if they haven't yet
 /// finished.
+#[deriving(Clone)]
 pub struct Parallel {
     tweens: Box<[Box<Tween + 'static>]>
 }
@@ -316,6 +333,7 @@ impl Tween for Parallel {
 
 /// A tween that simply does nothing for a period of time.
 /// Can be used to delay a tween.
+#[deriving(Clone)]
 pub struct Pause {
     duration: f64,
     current: f64
@@ -345,6 +363,7 @@ impl Tween for Pause {
 
 /// A tween that executes a function when it is updated.
 /// It consumes no time. If you need that, use the `Pause` tween.
+#[deriving(Clone)]
 pub struct Exec {
     content: fn(),
     executed: bool
@@ -368,6 +387,7 @@ impl Tween for Exec {
 }
 
 /// Repeat a given tween forever.
+#[deriving(Clone)]
 pub struct Repeat {
     tween: Box<Tween + 'static>
 }
@@ -407,6 +427,7 @@ impl Tween for Repeat {
 /// Reverses a given tween.
 /// Note that this is less powerful than reversing the tween by hand,
 /// because it does not support changing durations of the tween.
+#[deriving(Clone)]
 pub struct Reverse {
     tween: Box<Tween + 'static>,
     current: f64,
@@ -440,59 +461,58 @@ impl Tween for Reverse {
 }
 
 
-/*pub fn from_to<'a, T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>
-(val: &'a A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64)
--> Single<'a, T, A, E> {
-    Single::new(val, start, end, ease, mode, duration)
-}*/
-
-/*pub fn to<'a, T: Tween<'a>able + Clone + 'static, A: Access<T>, E: Ease + Sized>
-(val: &'a Accessible<T, A>, end: T, ease: E, mode: ease::Mode, duration: f64)
--> Single<'a, T, A, E> {
-    from_to(val, val.create_access().get(), end, ease, mode, duration)
+pub fn from_to<T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>
+(val: &A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64)
+-> Single<T, A, E> {
+    Single::new(*val, start, end, ease, mode, duration)
 }
 
-pub fn from<'a, T: Tween<'a>able + Clone + 'static, A: Access<T>, E: Ease + Sized>
-(val: &'a Accessible<T, A>, start: T, ease: E, mode: ease::Mode, duration: f64)
--> Single<'a, T, A, E> {
-    from_to(val, start, val.create_access().get(), ease, mode, duration)
+pub fn to<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>
+(val: &A, end: T, ease: E, mode: ease::Mode, duration: f64)
+-> Single<T, A, E> {
+    from_to(val, val.get(), end, ease, mode, duration)
 }
 
-pub fn series<'a, T: Tween<'a>able + 'static, A: Access<T>>
-(val: &'a Accessible<T, A>, data: Box<[(T, T, f64, Box<Ease + 'static>, ease::Mode)]>)
--> Multi<'a, 'a, T, A> {
-    Multi::new(val.create_access(), data)
+pub fn from<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>
+(val: &A, start: T, ease: E, mode: ease::Mode, duration: f64)
+-> Single<T, A, E> {
+    from_to(val, start, val.get(), ease, mode, duration)
 }
 
-pub fn seq<'a>(_tweens: Box<[Box<Tween<'a> + 'static>]>) -> Box<Tween<'a> + 'static> {
-    box Sequence::new(_tweens) as Box<Tween<'a> + 'static>
+pub fn series< T: Tweenable + 'static, A: Access<T>>
+(val: &A, data: Box<[(T, T, f64, Box<Ease + 'static>, ease::Mode)]>)
+-> Multi<T, A> {
+    Multi::new(*val, data)
 }
 
-pub fn par<'a>(_tweens: Box<[Box<Tween<'a> + 'static>]>) -> Box<Tween<'a> + 'static> {
-    box Parallel::new(_tweens) as Box<Tween<'a> + 'static>
+pub fn seq(tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
+    box Sequence::new(tweens) as Box<Tween + 'static>
 }
 
-pub fn exec(content: fn()) -> Box<Tween<'a> + 'static> {
-    box Exec::new(content) as Box<Tween<'a> + 'static>
+pub fn par(tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
+    box Parallel::new(tweens) as Box<Tween + 'static>
 }
 
-pub fn pause(time: f64) -> Box<Tween<'a> + 'static> {
-    box Pause::new(time) as Box<Tween<'a> + 'static>
+pub fn exec(content: fn()) -> Box<Tween + 'static> {
+    box Exec::new(content) as Box<Tween + 'static>
 }
 
-pub fn rep(tween: Box<Tween<'a> + 'static>) -> Box<Tween<'a> + 'static> {
-    box Repeat::new(tween) as Box<Tween<'a> + 'static>
+pub fn pause(time: f64) -> Box<Tween + 'static> {
+    box Pause::new(time) as Box<Tween + 'static>
 }
 
-pub fn rev(tween: Box<Tween<'a> + 'static>) -> Box<Tween<'a> + 'static> {
-    box Reverse::new(tween) as Box<Tween<'a> + 'static>
+pub fn rep(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
+    box Repeat::new(tween) as Box<Tween + 'static>
 }
 
-/*pub fn yoyo(tween: Box<Tween<'a> + 'static>) -> Box<Tween<'a> + 'static> {
-    rep(seq(box [tween, rev(tween)]))
-}*/
+pub fn rev(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
+    box Reverse::new(tween) as Box<Tween + 'static>
+}
 
-pub fn delay(tw: Box<Tween<'a> + 'static>, time: f64) -> Box<Tween<'a> + 'static> {
+pub fn yoyo(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
+    rep(seq(box [tween.clone(), rev(tween)]))
+}
+
+pub fn delay(tw: Box<Tween + 'static>, time: f64) -> Box<Tween + 'static> {
     seq(box [pause(time), tw])
 }
-*/
