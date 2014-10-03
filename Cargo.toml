@@ -4,6 +4,6 @@ name = "tween"
 version = "0.0.1"
 authors = ["Till Hoeppner <till@hoeppner.ws>"]
 
-[[bin]]
-name = "basic"
-path = "src/examples/basic.rs"
+#[[bin]]
+#name = "basic"
+#path = "src/examples/basic.rs"

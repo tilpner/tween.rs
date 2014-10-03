@@ -1,4 +1,4 @@
-redox-tween [![Build Status](https://travis-ci.org/hoeppnertill/tween.rs.svg?branch=master)](https://travis-ci.org/hoeppnertill/tween.rs)
+tween.rs [![Build Status](https://travis-ci.org/hoeppnertill/tween.rs.svg?branch=master)](https://travis-ci.org/hoeppnertill/tween.rs)
 ===========
 
 *This repository contains code that has not been properly tested yet, continue
