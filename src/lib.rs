@@ -1,7 +1,7 @@
 #![crate_name = "tween"]
 #![crate_type = "lib"]
 
-#![feature(associated_types)]
+#![feature(associated_types, overloaded_calls)]
 
 use std::ptr;
 use std::cmp;
@@ -33,6 +33,10 @@ pub trait Access<T> {
 /// Any data that can be accessed.
 pub trait Accessible<T, A: Access<T>> {
     fn create_access(&self) -> A;
+}
+
+pub trait MovingAccessible<T, A: Access<T>> {
+    fn move_access(self) -> A;
 }
 
 /// A single part of a tween tree.
@@ -163,16 +167,16 @@ impl<'a, T> Accessible<T, PtrAccess<T>> for &'a mut T {
     }
 }
 
-/*/// Access to anything that can't be done via the other two access modes
+/// Access to anything that can't be done via the other two access modes
 /// via callback functions to do what you want.
 /// Also sensible if you want to avoid polling the value, but get direct
 /// event-callbacks.
-pub struct FnAccess<T, F: Fn<(), T>, G: Fn<T, ()>> {
+pub struct FnAccess<T, F: Fn<(), T>, G: Fn<(T), ()>> {
     get: F,
     set: G
 }
 
-impl<T, F: Fn<(), T>, G: Fn<T, ()>> FnAccess<T, F, G> {
+impl<T, F: Fn<(), T>, G: Fn<(T), ()>> FnAccess<T, F, G> {
     #[inline]
     fn new(get: F, set: G) -> FnAccess<T, F, G> {
         FnAccess {
@@ -182,26 +186,26 @@ impl<T, F: Fn<(), T>, G: Fn<T, ()>> FnAccess<T, F, G> {
     }
 }
 
-impl<T, F: Fn<(), T>, G: Fn<T, ()>> Access<T> for FnAccess<T, F, G> {
+impl<T, F: Fn<(), T>, G: Fn<(T), ()>> Access<T> for FnAccess<T, F, G> {
     #[inline]
     fn get(&self) -> T {
-        self.get()
+        self.get.call(())
     }
 
     #[inline]
     fn set(&self, new_val: T) {
-        self.set(new_val)
+        self.set.call((new_val))
     }
 }
 
-impl<T: Copy, F: Fn<(), T>, G: Fn<T, ()>> Accessible<T, FnAccess<T, F, G>> for (F, G) {
+impl<T: Copy, F: Fn<(), T>, G: Fn<(T), ()>> MovingAccessible<T, FnAccess<T, F, G>> for (F, G) {
     #[inline]
-    fn create_access(self) -> FnAccess<T, F, G> {
+    fn move_access(self) -> FnAccess<T, F, G> {
         match self {
             (get, set) => FnAccess::new(get, set)
         }
     }
-}*/
+}
 
 impl<T: Primitive + FromPrimitive + FloatMath> Tweenable for T  {}
 
