@@ -10,7 +10,7 @@ fn main() {
 
     // the object that performs the change
     // (subject, target, easing, mode, duration (any unit))
-    let mut tween = to(& &mut x, 100., ease::quint(), InOut, 10.);
+    let mut tween = to(& ((&mut x) as *mut f64), 100., ease::quint(), InOut, 10.);
 
     while !tween.done() {
         // advance by 1 unit

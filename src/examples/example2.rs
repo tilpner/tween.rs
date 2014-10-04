@@ -1,15 +1,15 @@
-use tween::{from_to, rep, seq, exec, pause};
+extern crate tween;
+
+use tween::{ rep, seq, exec, pause };
 use std::cell::Cell;
 use std::io::stdio::println;
-mod tween;
 
 fn check() {
 	println("Check!");
 }
 
 fn main() {
-	let x = Cell::new(0);
-	let mut tween = rep(seq(~[
+	let mut tween = rep(seq(box [
 		exec(check),
 		pause(1000000.)
 	]));
