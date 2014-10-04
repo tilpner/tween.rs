@@ -4,6 +4,18 @@ name = "tween"
 version = "0.0.1"
 authors = ["Till Hoeppner <till@hoeppner.ws>"]
 
-#[[bin]]
-#name = "basic"
-#path = "src/examples/basic.rs"
+[[bin]]
+name = "basic"
+path = "src/examples/basic.rs"
+
+[[bin]]
+name = "exec"
+path = "src/examples/example2.rs"
+
+[[bin]]
+name = "multi"
+path = "src/examples/example_multi.rs"
+
+[[bin]]
+name = "images"
+path = "src/examples/images.rs"

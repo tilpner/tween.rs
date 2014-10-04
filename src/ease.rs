@@ -53,7 +53,7 @@ impl Ease for fn(f64) -> f64 {
 }
 
 #[deriving(Clone)]
-struct LinearEase;
+pub struct LinearEase;
 
 impl Ease for LinearEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -67,12 +67,12 @@ impl Ease for LinearEase {
     }
 }
 
-pub fn linear() -> Box<Ease + 'static> {
-    box LinearEase as Box<Ease + 'static>
+pub fn linear() -> LinearEase {
+    LinearEase
 }
 
 #[deriving(Clone)]
-struct QuadEase;
+pub struct QuadEase;
 
 impl Ease for QuadEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -91,12 +91,12 @@ impl Ease for QuadEase {
     }
 }
 
-pub fn quad() -> Box<Ease + 'static> {
-    box QuadEase as Box<Ease + 'static>
+pub fn quad() -> QuadEase {
+    QuadEase
 }
 
 #[deriving(Clone)]
-struct CubicEase;
+pub struct CubicEase;
 
 impl Ease for CubicEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -117,12 +117,12 @@ impl Ease for CubicEase {
     }
 }
 
-pub fn cubic() -> Box<Ease + 'static> {
-    box CubicEase as Box<Ease + 'static>
+pub fn cubic() -> CubicEase {
+    CubicEase
 }
 
 #[deriving(Clone)]
-struct QuartEase;
+pub struct QuartEase;
 
 impl Ease for QuartEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -142,8 +142,8 @@ impl Ease for QuartEase {
     }
 }
 
-pub fn quart() -> Box<Ease + 'static> {
-    box QuartEase as Box<Ease + 'static>
+pub fn quart() -> QuartEase {
+    QuartEase
 }
 
 #[deriving(Clone)]
@@ -173,7 +173,7 @@ pub fn quint() -> QuintEase {
 }
 
 #[deriving(Clone)]
-struct SineEase;
+pub struct SineEase;
 
 impl Ease for SineEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -187,12 +187,12 @@ impl Ease for SineEase {
     }
 }
 
-pub fn sine() -> Box<Ease + 'static> {
-    box SineEase as Box<Ease + 'static>
+pub fn sine() -> SineEase {
+    SineEase
 }
 
 #[deriving(Clone)]
-struct CircEase;
+pub struct CircEase;
 
 impl Ease for CircEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -214,12 +214,12 @@ impl Ease for CircEase {
     }
 }
 
-pub fn circ() -> Box<Ease + 'static> {
-    box CircEase as Box<Ease + 'static>
+pub fn circ() -> CircEase {
+    CircEase
 }
 
 #[deriving(Clone)]
-struct BounceEase;
+pub struct BounceEase;
 
 impl Ease for BounceEase {
     fn ease_in(&self, t: f64) -> f64 {
@@ -248,12 +248,12 @@ impl Ease for BounceEase {
     }
 }
 
-pub fn bounce() -> Box<Ease + 'static> {
-    box BounceEase as Box<Ease + 'static>
+pub fn bounce() -> BounceEase {
+    BounceEase
 }
 
 #[deriving(Clone)]
-struct ElasticEase {
+pub struct ElasticEase {
     a: f64,
     p: f64
 }
@@ -303,15 +303,15 @@ impl Ease for ElasticEase {
     }
 }
 
-pub fn elastic() -> Box<Ease + 'static> {
-    box ElasticEase {
+pub fn elastic() -> ElasticEase {
+    ElasticEase {
         a: NAN,
         p: NAN
-    } as Box<Ease + 'static>
+    }
 }
 
 #[deriving(Clone)]
-struct BackEase {
+pub struct BackEase {
     s: f64
 }
 
@@ -339,8 +339,8 @@ impl Ease for BackEase {
     }
 }
 
-pub fn back() -> Box<Ease + 'static> {
-    box BackEase {
+pub fn back() -> BackEase {
+    BackEase {
         s: 1.70158
-    } as Box<Ease + 'static>
+    }
 }
