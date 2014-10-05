@@ -141,5 +141,4 @@ fn main() {
     write_image("back_in.ppm", ease::back(), ease::In);
     write_image("back_out.ppm", ease::back(), ease::Out);
     write_image("back_inout.ppm", ease::back(), ease::InOut);
-
 }
