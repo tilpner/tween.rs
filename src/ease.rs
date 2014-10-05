@@ -13,15 +13,18 @@ pub enum Mode {
 pub trait Ease: Clone {
     /// Map t = 0..1 to an `alpha` value.
     /// That value is then used to lerp the value in question.
+    #[inline]
     fn ease_in(&self, t: f64) -> f64;
 
     /// Ease out, by default based on ease_in.
+    #[inline]
     fn ease_out(&self, t: f64) -> f64 {
         1.0 - self.ease_in(1.0 - t)
     }
 
     /// Ease both in and out, in for the first half, and out for the second
     /// half.
+    #[inline]
     fn ease_in_out(&self, t: f64) -> f64 {
         if t < 0.5 {
             self.ease_in(2.0 * t) / 2.0
@@ -31,6 +34,7 @@ pub trait Ease: Clone {
     }
 
     /// Do an ease with a given `Mode`.
+    #[inline]
     fn ease(&self, mode: Mode, t: f64) -> f64 {
         match mode {
             In => self.ease_in(t),

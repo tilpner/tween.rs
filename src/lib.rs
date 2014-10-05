@@ -1,12 +1,6 @@
 #![crate_name = "tween"]
 #![crate_type = "lib"]
 
-#![feature(phase, macro_rules, associated_types, overloaded_calls)]
-
-extern crate debug;
-#[phase(plugin, link)]
-extern crate log;
-
 use std::cmp;
 use std::cell::Cell;
 use std::f64::INFINITY;
@@ -19,22 +13,15 @@ use ease::Ease;
 pub mod partial_iter;
 pub mod ease;
 
-macro_rules! vdebug(
-    ($($var: expr),*) => (
-        debug!(
-            concat!(
-                $(concat!(stringify!($var), " = {:?} "),)+
-                ),$($var,)+);
-        )
-    )
-
 /// Any data that can be interpolated by this library.
 pub trait Tweenable: Add<Self, Self> + Sub<Self, Self> + MulWithF64 + Float + FloatMath + Copy {}
 
 /// A mutable property which is passed to the tweens.
 /// Chosen because hardcoding access ways is inflexible.
 pub trait Access<T>: Copy {
+    #[inline]
     fn get(&self) -> T;
+    #[inline]
     fn set(&mut self, val: T);
 }
 
@@ -63,19 +50,15 @@ pub trait Tween: Sized + Clone {
 }
 
 impl<'a> Clone for Box<Tween + 'a> {
+    #[inline]
     fn clone(&self) -> Box<Tween + 'a> {
         self.clone()
     }
 }
 
 impl<'a> Clone for Box<[Box<Tween + 'a>]> {
+    #[inline]
     fn clone(&self) -> Box<[Box<Tween + 'a>]> {
-        self.clone()
-    }
-}
-
-impl<'a, T: Clone> Clone for Box<[(T, T, f64, Box<ease::Ease + 'a>, ease::Mode)]> {
-    fn clone(&self) -> Box<[(T, T, f64, Box<ease::Ease + 'a>, ease::Mode)]> {
         self.clone()
     }
 }
@@ -110,11 +93,13 @@ impl<T: Tweenable> Lerp<T> for T {
 
 /// Allow access/tweening via a Cell<T>
 impl<'a, T: Copy + 'a> Access<T> for &'a Cell<T> {
+    #[inline]
     fn get(&self) -> T {
         let a: &Cell<T> = *self;
         a.get()
     }
 
+    #[inline]
     fn set(&mut self, val: T) {
         let a: &Cell<T> = *self;
         a.set(val);
@@ -126,10 +111,12 @@ impl<'a, T: Copy + 'a> Access<T> for &'a Cell<T> {
 /// Also sensible if you want to avoid polling the value, but get direct
 /// event-callbacks.
 impl<'a, T: 'a, G: Fn<(), T>, S: Fn<(T), ()>> Access<T> for (&'a G, &'a S) {
+    #[inline]
     fn get(&self) -> T {
         match *self { (get, _set) => get.call(()) }
     }
 
+    #[inline]
     fn set(&mut self, val: T) {
         match *self { (_get, set) => set.call((val)) }
     }
@@ -140,10 +127,12 @@ impl<'a, T: 'a, G: Fn<(), T>, S: Fn<(T), ()>> Access<T> for (&'a G, &'a S) {
 /// If you can, please use the `Cell<T>` alternative, as
 /// this thing shouldn't exist.
 impl<T: Copy> Access<T> for *mut T {
+    #[inline]
     fn get(&self) -> T {
         unsafe { **self }
     }
 
+    #[inline]
     fn set(&mut self, val: T) {
         unsafe { **self = val; }
     }
@@ -186,14 +175,17 @@ impl<T: Tweenable, A: Access<T>, E: Ease> Single<T, A, E> {
 }
 
 impl<T: Tweenable + 'static, A: Access<T> + Clone, E: Ease + Clone> Tween for Single<T, A, E> {
+    #[inline]
     fn remaining(&self) -> f64 {
         self.duration - self.current
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.current = 0f64;
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         let t = self.current / self.duration;
         let a = self.ease.ease(self.mode, t);
@@ -231,15 +223,18 @@ impl<T: Tweenable, A: Access<T>, E: Ease> Multi<T, A, E> {
 }
 
 impl <T: Tweenable, A: Access<T> + Clone, E: Ease> Tween for Multi<T, A, E> {
+    #[inline]
     fn remaining(&self) -> f64 {
         self.data.iter().skip(self.current).map(|&(_, _, b, _)| b).fold(0., |a, b| a + b) - self.current_time
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.current = 0;
         self.current_time = 0.;
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         //let (_, _, dur, _) = self.data[self.current];
         //delta /= dur; // normalize from duration to [0;1]
@@ -275,7 +270,7 @@ pub struct Sequence<'a> {
 }
 
 impl<'a> Sequence<'a> {
-    fn new(tweens: Vec<Box<Tween + 'static>>) -> Sequence<'a> {
+    fn new(tweens: Vec<Box<Tween + 'a>>) -> Sequence<'a> {
         Sequence {
             tweens: tweens,
             current: 0u
@@ -284,10 +279,12 @@ impl<'a> Sequence<'a> {
 }
 
 impl<'a> Tween for Sequence<'a> {
+    #[inline]
     fn remaining(&self) -> f64 {
         self.tweens.iter().fold(0f64, |a, b| a + b.remaining())
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.current = 0;
         for tw in self.tweens.iter_mut() {
@@ -295,6 +292,7 @@ impl<'a> Tween for Sequence<'a> {
         }
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         let mut remain: f64 = delta;
         while remain > 0f64 && self.current < self.tweens.len() {
@@ -326,17 +324,20 @@ impl Parallel {
 
 impl Tween for Parallel {
     /// The max remaining time of all wrapped tweens
+    #[inline]
     fn remaining(&self) -> f64 {
         self.tweens.iter().partial_max_by(|&a| a.remaining()).unwrap().remaining()
     }
 
     /// Reset every wrapped tween.
+    #[inline]
     fn reset(&mut self) {
         for tw in self.tweens.iter_mut() {
             tw.reset();
         }
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         let mut max_remain = 0f64;
         for tw in self.tweens.iter_mut() {
@@ -363,14 +364,17 @@ impl Pause {
 }
 
 impl Tween for Pause {
+    #[inline]
     fn remaining(&self) -> f64 {
         self.duration - self.current
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.current = 0f64;
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         let remain = self.remaining();
         self.current += cmp::partial_min(remain, delta).unwrap();
@@ -393,9 +397,13 @@ impl Exec {
 }
 
 impl Tween for Exec {
+    #[inline(always)]
     fn remaining(&self) -> f64 {0.}
+    #[inline]
     fn done(&self) -> bool {self.executed}
+    #[inline]
     fn reset(&mut self) {self.executed = false;}
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         (self.content)();
         self.executed = true;
@@ -418,14 +426,17 @@ impl Repeat {
 }
 
 impl Tween for Repeat {
+    #[inline(always)]
     fn remaining(&self) -> f64 {
         INFINITY
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.tween.reset();
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         let mut remain = delta;
         while remain > 0. {
@@ -464,14 +475,17 @@ impl Reverse {
 }
 
 impl Tween for Reverse {
+    #[inline]
     fn remaining(&self) -> f64 {
         self.duration - self.current
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.current = 0.;
     }
 
+    #[inline]
     fn update(&mut self, delta: f64) -> f64 {
         self.tween.update(-delta)
     }
