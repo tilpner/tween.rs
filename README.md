@@ -23,10 +23,9 @@ addition of animations (via tweens) can change the feeling of a game.
 See [the examples](/src/examples).
 
 Compiling and running `images.rs` *should* create `.ppm` files of all basic
-variations of tweens in `/tmp/`. If that directory doesn't exit for you, you
-should change the hardcoded path. (Yes, it should be an argument)
+variations of tweens in the current directory.
 
-More complex examples will follow.
+More complex examples will (might) follow.
 
 ## Features
 
@@ -50,7 +49,7 @@ More complex examples will follow.
  - Pauses
  - Function execution
  - Repeated execution
-- Three value access modes
+- Three value access modes:
  - via unsafe pointers
  - via `Cell`
  - via callback functions
