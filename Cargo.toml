@@ -9,12 +9,12 @@ name = "basic"
 path = "src/examples/basic.rs"
 
 [[bin]]
-name = "exec"
-path = "src/examples/example2.rs"
+name = "combination"
+path = "src/examples/combination.rs"
 
 [[bin]]
 name = "multi"
-path = "src/examples/example_multi.rs"
+path = "src/examples/multi.rs"
 
 [[bin]]
 name = "images"
