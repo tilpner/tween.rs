@@ -1,7 +1,11 @@
 #![crate_name = "tween"]
 #![crate_type = "lib"]
 
-#![feature(associated_types, overloaded_calls)]
+#![feature(phase, macro_rules, associated_types, overloaded_calls)]
+
+extern crate debug;
+#[phase(plugin, link)]
+extern crate log;
 
 use std::cmp;
 use std::cell::Cell;
@@ -14,6 +18,15 @@ use ease::Ease;
 
 pub mod partial_iter;
 pub mod ease;
+
+macro_rules! vdebug(
+    ($($var: expr),*) => (
+        debug!(
+            concat!(
+                $(concat!(stringify!($var), " = {:?} "),)+
+                ),$($var,)+);
+        )
+    )
 
 /// Any data that can be interpolated by this library.
 pub trait Tweenable: Add<Self, Self> + Sub<Self, Self> + MulWithF64 + Float + FloatMath + Copy {}
@@ -96,13 +109,15 @@ impl<T: Tweenable> Lerp<T> for T {
 }
 
 /// Allow access/tweening via a Cell<T>
-impl<T: Copy> Access<T> for Cell<T> {
+impl<'a, T: Copy + 'a> Access<T> for &'a Cell<T> {
     fn get(&self) -> T {
-        self.get()
+        let a: &Cell<T> = *self;
+        a.get()
     }
 
     fn set(&mut self, val: T) {
-        self.set(val)
+        let a: &Cell<T> = *self;
+        a.set(val);
     }
 }
 
@@ -195,17 +210,19 @@ impl<T: Tweenable + 'static, A: Access<T> + Clone, E: Ease + Clone> Tween for Si
 /// This could be done less efficiently for `n`
 /// data points with `n - 1` `Single` tweens.
 #[deriving(Clone)]
-pub struct Multi<T, A: Access<T>> {
+pub struct Multi<T, A: Access<T>, E: Ease> {
     acc: A,
-    data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>,
+    ease: E,
+    data: Vec<(T, T, f64, ease::Mode)>,
     current: uint,
     current_time: f64 // is in user-defined duration, not [0;1]
 }
 
-impl<T: Tweenable, A: Access<T>> Multi<T, A> {
-    fn new(acc: A, data: Box<[(T, T, f64, Box<ease::Ease + 'static>, ease::Mode)]>) -> Multi<T, A> {
+impl<T: Tweenable, A: Access<T>, E: Ease> Multi<T, A, E> {
+    fn new(acc: A, data: Vec<(T, T, f64, ease::Mode)>, ease: E) -> Multi<T, A, E> {
         Multi {
             acc: acc,
+            ease: ease,
             data: data,
             current: 0,
             current_time: 0.
@@ -213,9 +230,9 @@ impl<T: Tweenable, A: Access<T>> Multi<T, A> {
     }
 }
 
-impl <T: Tweenable, A: Access<T> + Clone> Tween for Multi<T, A> {
+impl <T: Tweenable, A: Access<T> + Clone, E: Ease> Tween for Multi<T, A, E> {
     fn remaining(&self) -> f64 {
-        self.data.iter().skip(self.current).map(|&(_, _, b, _, _)| b).fold(0., |a, b| a + b) - self.current_time
+        self.data.iter().skip(self.current).map(|&(_, _, b, _)| b).fold(0., |a, b| a + b) - self.current_time
     }
 
     fn reset(&mut self) {
@@ -224,13 +241,13 @@ impl <T: Tweenable, A: Access<T> + Clone> Tween for Multi<T, A> {
     }
 
     fn update(&mut self, delta: f64) -> f64 {
-        //let (_, _, dur, _, _) = self.data[self.current];
+        //let (_, _, dur, _) = self.data[self.current];
         //delta /= dur; // normalize from duration to [0;1]
         self.current_time += delta;
 
         // wrap time around till between bounds
         loop {
-            let (_, _, dur, _, _) = self.data[self.current];
+            let (_, _, dur, _) = self.data[self.current];
             if self.current_time - dur > 0. {
                 self.current_time -= dur;
                 self.current += 1;
@@ -239,8 +256,8 @@ impl <T: Tweenable, A: Access<T> + Clone> Tween for Multi<T, A> {
             }
         }
 
-        let (start, end, dur, ref ease, mode) = self.data[self.current];
-        let a = ease.ease(mode, self.current_time / dur);
+        let (start, end, dur, mode) = self.data[self.current];
+        let a = self.ease.ease(mode, self.current_time / dur);
         let new = self.acc.get().lerp(&start, &end, a);
         self.acc.set(new);
         delta
@@ -253,12 +270,12 @@ impl <T: Tweenable, A: Access<T> + Clone> Tween for Multi<T, A> {
 /// returns `true` when `done` is called.
 #[deriving(Clone)]
 pub struct Sequence<'a> {
-    tweens: Box<[Box<Tween + 'a>]>,
+    tweens: Vec<Box<Tween + 'a>>,
     current: uint
 }
 
 impl<'a> Sequence<'a> {
-    fn new(tweens: Box<[Box<Tween + 'static>]>) -> Sequence<'a> {
+    fn new(tweens: Vec<Box<Tween + 'static>>) -> Sequence<'a> {
         Sequence {
             tweens: tweens,
             current: 0u
@@ -281,7 +298,7 @@ impl<'a> Tween for Sequence<'a> {
     fn update(&mut self, delta: f64) -> f64 {
         let mut remain: f64 = delta;
         while remain > 0f64 && self.current < self.tweens.len() {
-            remain = self.tweens[self.current].update(remain);
+            remain = self.tweens.get_mut(self.current).update(remain);
             if self.tweens[self.current].done() {
                 self.current += 1;
             }
@@ -296,11 +313,11 @@ impl<'a> Tween for Sequence<'a> {
 /// finished.
 #[deriving(Clone)]
 pub struct Parallel {
-    tweens: Box<[Box<Tween + 'static>]>
+    tweens: Vec<Box<Tween + 'static>>
 }
 
 impl Parallel {
-    fn new(tweens: Box<[Box<Tween + 'static>]>) -> Parallel {
+    fn new(tweens: Vec<Box<Tween + 'static>>) -> Parallel {
         Parallel {
             tweens: tweens
         }
@@ -461,35 +478,35 @@ impl Tween for Reverse {
 }
 
 
-pub fn from_to<T: Tweenable + 'static, A: Access<T>, E: Ease + Sized>
-(val: &A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64)
+pub fn from_to<T: Tweenable + 'static, A: Access<T>, E: Ease>
+(val: A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
-    Single::new(*val, start, end, ease, mode, duration)
+    Single::new(val, start, end, ease, mode, duration)
 }
 
-pub fn to<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>
-(val: &A, end: T, ease: E, mode: ease::Mode, duration: f64)
+pub fn to<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease>
+(val: A, end: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
     from_to(val, val.get(), end, ease, mode, duration)
 }
 
-pub fn from<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease + Sized>
-(val: &A, start: T, ease: E, mode: ease::Mode, duration: f64)
+pub fn from<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease>
+(val: A, start: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
     from_to(val, start, val.get(), ease, mode, duration)
 }
 
-pub fn series< T: Tweenable + 'static, A: Access<T>>
-(val: &A, data: Box<[(T, T, f64, Box<Ease + 'static>, ease::Mode)]>)
--> Multi<T, A> {
-    Multi::new(*val, data)
+pub fn series<T: Tweenable + 'static, A: Access<T>, E: Ease>
+(val: A, data: Vec<(T, T, f64, ease::Mode)>, ease: E)
+-> Multi<T, A, E> {
+    Multi::new(val, data, ease)
 }
 
-pub fn seq(tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
+pub fn seq(tweens: Vec<Box<Tween + 'static>>) -> Box<Tween + 'static> {
     box Sequence::new(tweens) as Box<Tween + 'static>
 }
 
-pub fn par(tweens: Box<[Box<Tween + 'static>]>) -> Box<Tween + 'static> {
+pub fn par(tweens: Vec<Box<Tween + 'static>>) -> Box<Tween + 'static> {
     box Parallel::new(tweens) as Box<Tween + 'static>
 }
 
@@ -510,9 +527,9 @@ pub fn rev(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
 }
 
 pub fn yoyo(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
-    rep(seq(box [tween.clone(), rev(tween)]))
+    rep(seq(vec![tween.clone(), rev(tween)]))
 }
 
 pub fn delay(tw: Box<Tween + 'static>, time: f64) -> Box<Tween + 'static> {
-    seq(box [pause(time), tw])
+    seq(vec![pause(time), tw])
 }

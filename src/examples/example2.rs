@@ -1,7 +1,6 @@
 extern crate tween;
 
 use tween::{ rep, seq, exec, pause };
-use std::cell::Cell;
 use std::io::stdio::println;
 
 fn check() {
@@ -9,7 +8,7 @@ fn check() {
 }
 
 fn main() {
-	let mut tween = rep(seq(box [
+    let mut tween = rep(seq(vec![
 		exec(check),
 		pause(1000000.)
 	]));

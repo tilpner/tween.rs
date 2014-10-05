@@ -10,7 +10,7 @@ pub enum Mode {
 
 /// A trait for "easing" from one value to another. Easing is an interpolation
 /// between two values, usually non-linear.
-pub trait Ease: Sized + Clone {
+pub trait Ease: Clone {
     /// Map t = 0..1 to an `alpha` value.
     /// That value is then used to lerp the value in question.
     fn ease_in(&self, t: f64) -> f64;
@@ -38,12 +38,7 @@ pub trait Ease: Sized + Clone {
             InOut => self.ease_in_out(t)
         }
     }
-}
 
-impl<'a> Clone for Box<Ease + 'a> {
-    fn clone(&self) -> Box<Ease + 'a> {
-        self.clone()
-    }
 }
 
 impl Ease for fn(f64) -> f64 {
