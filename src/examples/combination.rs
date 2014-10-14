@@ -1,6 +1,6 @@
 extern crate tween;
 
-use tween::{ rep, seq, exec, pause };
+use tween::{ yoyo, rep, seq, exec, pause };
 use std::io::stdio::println;
 
 fn check() {
@@ -8,7 +8,7 @@ fn check() {
 }
 
 fn main() {
-    let mut tween = rep(seq(vec![
+    let mut tween = yoyo(seq(vec![
 		exec(check),
 		pause(1000000.)
 	]));

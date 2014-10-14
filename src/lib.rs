@@ -52,14 +52,14 @@ pub trait Tween: Sized + Clone {
 impl<'a> Clone for Box<Tween + 'a> {
     #[inline]
     fn clone(&self) -> Box<Tween + 'a> {
-        self.clone()
+        (*self).clone()
     }
 }
 
 impl<'a> Clone for Box<[Box<Tween + 'a>]> {
     #[inline]
     fn clone(&self) -> Box<[Box<Tween + 'a>]> {
-        self.clone()
+        (*self).clone()
     }
 }
 
@@ -492,58 +492,70 @@ impl Tween for Reverse {
 }
 
 
+/// Tween a value between two bounds, given an easing, a mode and a duration.
 pub fn from_to<T: Tweenable + 'static, A: Access<T>, E: Ease>
 (val: A, start: T, end: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
     Single::new(val, start, end, ease, mode, duration)
 }
 
+/// Tween a value from its current value to a given bound, given an easing, a mode and a duration.
 pub fn to<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease>
 (val: A, end: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
     from_to(val, val.get(), end, ease, mode, duration)
 }
 
+/// Tween a value from a given value to its current value, given an easing, a mode and a duration.
 pub fn from<T: Tweenable + Clone + 'static, A: Access<T>, E: Ease>
 (val: A, start: T, ease: E, mode: ease::Mode, duration: f64)
 -> Single<T, A, E> {
     from_to(val, start, val.get(), ease, mode, duration)
 }
 
+/// Tween a value through several datapoints, each customized by start, end, easing and duration.
 pub fn series<T: Tweenable + 'static, A: Access<T>, E: Ease>
 (val: A, data: Vec<(T, T, f64, ease::Mode)>, ease: E)
 -> Multi<T, A, E> {
     Multi::new(val, data, ease)
 }
 
+/// Returns a tween that represents a sequential concatenation of the given tweens.
 pub fn seq(tweens: Vec<Box<Tween + 'static>>) -> Box<Tween + 'static> {
     box Sequence::new(tweens) as Box<Tween + 'static>
 }
 
+/// Returns a tween that represents a parallel execution of the given tweens.
 pub fn par(tweens: Vec<Box<Tween + 'static>>) -> Box<Tween + 'static> {
     box Parallel::new(tweens) as Box<Tween + 'static>
 }
 
+/// Returns a tween that executes a function when used.
 pub fn exec(content: fn()) -> Box<Tween + 'static> {
     box Exec::new(content) as Box<Tween + 'static>
 }
 
+/// Returns an empty tween, that does nothing but consumes time.
 pub fn pause(time: f64) -> Box<Tween + 'static> {
     box Pause::new(time) as Box<Tween + 'static>
 }
 
+/// Returns a tween that repeats a given tween infinitely often.
 pub fn rep(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
     box Repeat::new(tween) as Box<Tween + 'static>
 }
 
+/// Returns a tween that reverses a given tween.
 pub fn rev(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
     box Reverse::new(tween) as Box<Tween + 'static>
 }
 
+/// Returns a tween that plays a given tween forwards and backwards repeatedly.
 pub fn yoyo(tween: Box<Tween + 'static>) -> Box<Tween + 'static> {
     rep(seq(vec![tween.clone(), rev(tween)]))
 }
 
+/// Returns a given tween, but delays it by a given time.
 pub fn delay(tw: Box<Tween + 'static>, time: f64) -> Box<Tween + 'static> {
     seq(vec![pause(time), tw])
 }
