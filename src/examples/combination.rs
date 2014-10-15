@@ -10,10 +10,10 @@ fn check() {
 fn main() {
     let mut tween = yoyo(seq(vec![
 		exec(check),
-		pause(1000000.)
+        exec(check)
 	]));
 
-	while ! tween.done() {
+	while !tween.done() {
 		tween.update(0.1);
 	}
 

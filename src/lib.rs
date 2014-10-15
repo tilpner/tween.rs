@@ -47,12 +47,18 @@ pub trait Tween: Sized + Clone {
     /// Update the tween, after `delta` time has passed
     #[inline]
     fn update(&mut self, delta: f64) -> f64;
+
+    /// Yeah, this hurts. I know. But apparently, just because this trait
+    /// is `Clone` doesn't mean that `Box<Tween>` is `Clone`...
+    fn clone_into_box<'a>(&self) -> Box<Tween + 'a> {
+        box self.clone()
+    }
 }
 
 impl<'a> Clone for Box<Tween + 'a> {
     #[inline]
     fn clone(&self) -> Box<Tween + 'a> {
-        (*self).clone()
+        self.clone_into_box()
     }
 }
 
@@ -60,7 +66,7 @@ impl<'a> Clone for Box<[Box<Tween + 'a>]> {
     #[inline]
     fn clone(&self) -> Box<[Box<Tween + 'a>]> {
         (*self).clone()
-    }
+   }
 }
 
 /// Scalar multiplication of the value with an `f64`.
